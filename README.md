@@ -1,0 +1,292 @@
+# 影子学习应用 (Shadowing Learning)
+
+基于Web的语言"影子跟读"学习应用，支持音频转录、文本处理和交互式播放功能。
+
+## ✨ 核心特性
+
+- 🎵 **本地音频存储**：所有文件存储在浏览器IndexedDB中，保护隐私
+- 🗣️ **智能语音转录**：集成Groq Whisper-large-v3进行高质量转录
+- 🔄 **文本智能处理**：OpenRouter LLM进行分句规范化、翻译和标注
+- ⏯️ **高级播放控制**：支持A-B循环、变速播放、精确定位
+- 📝 **实时字幕同步**：毫秒级字幕同步和高亮显示
+- 🎯 **跟读练习模式**：点击句子自动循环播放，专为语言学习设计
+
+## 🛠️ 技术架构
+
+### 前端技术栈
+- **框架**: Next.js 15 (App Router) + React 19
+- **语言**: TypeScript 5+ (严格模式)
+- **UI组件**: shadcn/ui + Radix UI + Tailwind CSS
+- **图标**: Lucide React
+- **数据库**: Dexie (IndexedDB封装)
+- **状态管理**: React内置 + IndexedDB持久化
+
+### 后端集成
+- **语音转录**: Groq Whisper-large-v3
+- **文本处理**: OpenRouter (支持多种LLM模型)
+- **数据验证**: Zod schema验证
+
+### 数据流架构
+
+```
+用户上传音频 → IndexedDB存储 → 分片处理 → Groq转录 → OpenRouter后处理 → 字幕同步播放
+     ↓              ↓           ↓          ↓            ↓              ↓
+  文件管理      本地持久化     并发控制    语音识别    智能标注        跟读练习
+```
+
+## 🚀 快速开始
+
+### 环境要求
+- Node.js 18+
+- npm 或 pnpm
+- 现代浏览器（支持IndexedDB和Web Audio API）
+
+### 安装步骤
+
+1. **克隆项目**
+```bash
+git clone <repository-url>
+cd shadowing-learning
+```
+
+2. **安装依赖**
+```bash
+npm install
+```
+
+3. **配置环境变量**
+```bash
+cp .env.example .env.local
+```
+
+编辑 `.env.local` 文件，添加必要的API密钥：
+```env
+GROQ_API_KEY=your_groq_api_key
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_MODEL=deepseek/deepseek-chat-v3.1:free
+MAX_CONCURRENCY=3
+CHUNK_SECONDS=45
+CHUNK_OVERLAP=0.2
+```
+
+4. **启动开发服务器**
+```bash
+npm run dev
+```
+
+5. **访问应用**
+打开浏览器访问 [http://localhost:3000](http://localhost:3000)
+
+## 📖 使用指南
+
+### 基本流程
+1. **上传音频**：拖拽或选择音频文件到上传区域
+2. **等待处理**：系统自动进行语音转录和文本处理
+3. **开始学习**：使用播放器和字幕进行影子跟读练习
+
+### 高级功能
+- **A-B循环**：点击任意句子开启循环播放
+- **变速播放**：调整播放速度（0.5x - 2.0x）
+- **精确定位**：点击进度条快速跳转
+- **术语管理**：自定义术语库进行统一翻译
+
+## 🧩 项目结构
+
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # API路由
+│   │   ├── transcribe/    # 语音转录API
+│   │   ├── postprocess/   # 文本后处理API
+│   │   └── progress/      # 进度查询API
+│   ├── globals.css        # 全局样式
+│   ├── layout.tsx         # 根布局
+│   └── page.tsx           # 主页面
+├── components/            # UI组件
+│   ├── ui/               # shadcn/ui基础组件
+│   ├── audio-player.tsx   # 音频播放器
+│   ├── file-upload.tsx    # 文件上传
+│   ├── file-list.tsx      # 文件列表
+│   ├── subtitle-display.tsx # 字幕显示
+│   └── waveform-display.tsx # 波形显示
+├── lib/                   # 核心工具库
+│   ├── db.ts             # 数据库配置
+│   ├── groq-client.ts    # Groq API客户端
+│   ├── openrouter-client.ts # OpenRouter客户端
+│   ├── audio-processor.ts # 音频处理
+│   ├── subtitle-sync.ts   # 字幕同步
+│   └── error-handler.ts   # 错误处理
+└── types/                 # TypeScript类型定义
+    ├── database.ts        # 数据库类型
+    └── errors.ts          # 错误类型
+```
+
+## 🔧 开发命令
+
+### 开发环境
+```bash
+npm run dev          # 启动开发服务器
+npm run type-check   # TypeScript类型检查
+npm run lint         # 代码质量检查
+```
+
+### 构建和部署
+```bash
+npm run build        # 生产环境构建
+npm run start        # 启动生产服务器
+```
+
+### 测试
+```bash
+npm test            # 运行单元测试
+npm run test:watch  # 监视模式运行测试
+npm run test:coverage # 测试覆盖率报告
+```
+
+## 🎯 核心功能实现
+
+### 音频处理流程
+1. **文件上传** → 验证格式和大小
+2. **分片处理** → 45秒分片，0.2秒重叠
+3. **并发转录** → 最多3个并发请求
+4. **结果合并** → 智能去重和拼接
+5. **后处理** → LLM规范化和标注
+
+### 字幕同步机制
+- **二分查找算法**：O(log n)时间复杂度定位当前句子
+- **亚秒级精度**：50ms容差范围内的精确同步
+- **平滑滚动**：200ms节流的自动滚动跟随
+
+### 跟读循环控制
+- **智能循环**：自动检测音频边界
+- **可配置次数**：支持设定循环次数
+- **无缝切换**：循环结束后可选择继续播放
+
+## 🔒 隐私和安全
+
+### 数据隐私
+- **本地存储优先**：所有用户数据存储在浏览器IndexedDB
+- **临时传输**：音频文件仅在转录时临时传输，不在服务器持久化
+- **用户控制**：提供一键清空所有本地数据功能
+
+### 安全措施
+- **API密钥保护**：敏感信息仅在服务端处理
+- **输入验证**：Zod schema严格验证所有输入
+- **HTTPS强制**：所有API通信使用加密传输
+- **无用户追踪**：不收集任何个人身份信息
+
+## 📚 API文档
+
+### 转录API
+```typescript
+POST /api/transcribe
+Content-Type: multipart/form-data
+
+// 请求体
+FormData {
+  audio: Blob,           // 音频文件
+  meta: {
+    fileId: string,      // 文件ID
+    chunkIndex: number,  // 分片索引
+    offsetSec: number    // 时间偏移
+  }
+}
+
+// 响应
+{
+  ok: boolean,
+  chunkIndex: number,
+  data: {
+    text: string,
+    segments: Segment[]
+  }
+}
+```
+
+### 后处理API
+```typescript
+POST /api/postprocess
+Content-Type: application/json
+
+// 请求体
+{
+  fileId: string,
+  segments: RawSegment[],
+  targetLangs: string[],    // ['zh', 'en']
+  preferReading: string     // 'ja'
+}
+
+// 响应
+{
+  ok: boolean,
+  data: {
+    lang: string,
+    segments: ProcessedSegment[]
+  }
+}
+```
+
+## 🐛 故障排除
+
+### 常见问题
+
+**音频无法播放**
+- 检查浏览器是否支持该音频格式
+- 确认文件未损坏
+- 尝试刷新页面
+
+**转录失败**
+- 检查网络连接
+- 验证API密钥配置
+- 确认音频质量清晰
+
+**字幕不同步**
+- 检查音频文件完整性
+- 尝试重新处理
+- 报告问题到项目仓库
+
+### 日志查看
+打开浏览器开发者工具 → Console 标签查看详细错误信息
+
+## 🤝 贡献指南
+
+### 开发环境设置
+1. Fork项目仓库
+2. 创建功能分支：`git checkout -b feature/your-feature`
+3. 安装依赖：`npm install`
+4. 配置环境变量
+5. 开始开发：`npm run dev`
+
+### 提交规范
+遵循 [Conventional Commits](https://conventionalcommits.org/) 规范：
+```
+feat: 新功能
+fix: 错误修复
+docs: 文档更新
+style: 代码格式
+refactor: 代码重构
+test: 测试相关
+chore: 其他更改
+```
+
+### Pull Request
+- 提供清晰的描述
+- 包含相关的issue链接
+- 确保所有测试通过
+- 更新相关文档
+
+## 📄 许可证
+
+本项目采用 [MIT](LICENSE) 许可证。
+
+## 🙏 致谢
+
+- [Groq](https://groq.com/) - 提供高质量语音转录服务
+- [OpenRouter](https://openrouter.ai/) - 提供多样化LLM模型支持
+- [shadcn/ui](https://ui.shadcn.com/) - 优雅的UI组件库
+- [Dexie.js](https://dexie.org/) - 强大的IndexedDB封装库
+
+---
+
+**开始你的语言学习之旅！** 🚀

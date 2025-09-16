@@ -1,0 +1,68 @@
+export interface AppError {
+  code: string;
+  message: string;
+  details?: unknown;
+  statusCode: number;
+}
+
+export const ErrorCodes = {
+  // 数据库错误
+  DB_CONNECTION_FAILED: 'DB_CONNECTION_FAILED',
+  DB_QUERY_FAILED: 'DB_QUERY_FAILED',
+  DB_RECORD_NOT_FOUND: 'DB_RECORD_NOT_FOUND',
+  DB_MIGRATION_FAILED: 'DB_MIGRATION_FAILED',
+  DB_INTEGRITY_ERROR: 'DB_INTEGRITY_ERROR',
+
+  // API 错误
+  API_VALIDATION_ERROR: 'API_VALIDATION_ERROR',
+  API_AUTH_ERROR: 'API_AUTH_ERROR',
+  API_RATE_LIMIT: 'API_RATE_LIMIT',
+  API_TIMEOUT: 'API_TIMEOUT',
+
+  // 文件处理错误
+  FILE_UPLOAD_FAILED: 'FILE_UPLOAD_FAILED',
+  FILE_NOT_FOUND: 'FILE_NOT_FOUND',
+  FILE_PROCESSING_ERROR: 'FILE_PROCESSING_ERROR',
+
+  // 转录处理错误
+  TRANSCRIPTION_FAILED: 'TRANSCRIPTION_FAILED',
+  TRANSCRIPTION_TIMEOUT: 'TRANSCRIPTION_TIMEOUT',
+  POST_PROCESSING_FAILED: 'POST_PROCESSING_FAILED',
+
+  // 音频处理错误
+  AUDIO_PROCESSING_ERROR: 'AUDIO_PROCESSING_ERROR',
+  AUDIO_FORMAT_UNSUPPORTED: 'AUDIO_FORMAT_UNSUPPORTED',
+
+  // 业务逻辑错误
+  INVALID_OPERATION: 'INVALID_OPERATION',
+  RESOURCE_BUSY: 'RESOURCE_BUSY',
+  CONCURRENCY_LIMIT: 'CONCURRENCY_LIMIT',
+  FILE_ALREADY_PROCESSED: 'FILE_ALREADY_PROCESSED',
+
+  // 系统错误
+  INTERNAL_SERVER_ERROR: 'INTERNAL_SERVER_ERROR',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  CONFIGURATION_ERROR: 'CONFIGURATION_ERROR',
+} as const;
+
+export type ErrorCode = keyof typeof ErrorCodes;
+
+// 用户友好的错误消息映射
+export const UserFriendlyMessages: Record<string, string> = {
+  DB_CONNECTION_FAILED: '数据库连接失败，请检查网络连接',
+  DB_RECORD_NOT_FOUND: '请求的资源不存在',
+  FILE_UPLOAD_FAILED: '文件上传失败，请重试',
+  FILE_NOT_FOUND: '文件不存在',
+  TRANSCRIPTION_FAILED: '音频转录失败，请检查音频质量',
+  POST_PROCESSING_FAILED: '文本处理失败，请稍后重试',
+  API_RATE_LIMIT: '请求过于频繁，请稍后再试',
+  NETWORK_ERROR: '网络连接失败，请检查网络设置',
+  INTERNAL_SERVER_ERROR: '系统内部错误，请联系技术支持',
+  SERVICE_UNAVAILABLE: '服务暂时不可用，请稍后再试',
+};
+
+// 默认错误消息
+export const getDefaultErrorMessage = (code: string): string => {
+  return UserFriendlyMessages[code] || '发生未知错误，请重试';
+};

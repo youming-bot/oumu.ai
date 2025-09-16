@@ -1,0 +1,117 @@
+{
+  "name": "Shadowing Learning",
+  "short_name": "ShadowingLearn",
+  "description": "A web application for language learning through audio shadowing with transcription and translation features",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-96.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-144.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-152.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-384.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-1.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Shadowing Learning Main Interface"
+    },
+    {
+      "src": "/screenshot-2.png",
+      "sizes": "750x1334",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile View"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "en-US",
+  "scope": "/",
+  "prefer_related_applications": false,
+  "protocol_handlers": [
+    {
+      "protocol": "web+shadowing",
+      "url": "/open?url=%s"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Upload Audio",
+      "short_name": "Upload",
+      "description": "Upload new audio files for transcription",
+      "url": "/?view=upload",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "My Files",
+      "short_name": "Files",
+      "description": "View your uploaded audio files",
+      "url": "/?view=files",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Terminology",
+      "short_name": "Terms",
+      "description": "Manage your terminology glossary",
+      "url": "/?view=terminology",
+      "icons": [{ "src": "/icon-96.png", "sizes": "96x96" }]
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/upload",
+      "accept": {
+        "audio/*": [".mp3", ".wav", ".ogg", ".m4a"]
+      }
+    }
+  ]
+}
