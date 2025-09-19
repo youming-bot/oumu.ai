@@ -2,7 +2,10 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiFromError, apiSuccess } from "@/lib/api-response";
 import { handleError, validationError } from "@/lib/error-handler";
-import { transcribeWithFallback } from "@/lib/transcription-providers";
+import {
+  transcribeWithFallback,
+  mergeTranscriptionResultsByProvider,
+} from "@/lib/simple-transcription";
 import { WordTimestampService } from "@/lib/word-timestamp-service";
 
 const transcribeSchema = z.object({
@@ -110,15 +113,10 @@ export async function POST(request: NextRequest) {
       );
 
       console.log("🔄 Merging transcription results...");
-      // Handle different provider result formats
-      let mergedResult;
-      if (provider === "huggingface") {
-        const { mergeHFTranscriptionResults } = await import("@/lib/hf-client");
-        mergedResult = mergeHFTranscriptionResults(results);
-      } else {
-        const { mergeTranscriptionResults } = await import("@/lib/groq-client");
-        mergedResult = mergeTranscriptionResults(results);
-      }
+      const mergedResult = mergeTranscriptionResultsByProvider(
+        results,
+        provider,
+      );
       console.log("✅ Results merged:", {
         textLength: mergedResult.text?.length,
         segmentCount: mergedResult.segments?.length,

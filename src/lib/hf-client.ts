@@ -3,6 +3,7 @@ import type { AudioChunk } from "./audio-processor";
 export interface HFTranscriptionResponse {
   text: string;
   language?: string;
+  duration?: number;
   segments?: Array<{
     id: number;
     seek: number;
@@ -30,7 +31,8 @@ export class HFClient {
 
   constructor(apiKey: string = process.env.HF_API_KEY || "") {
     this.apiKey = apiKey;
-    this.baseUrl = "https://api-inference.huggingface.co/models/openai/whisper-large-v3";
+    this.baseUrl =
+      "https://api-inference.huggingface.co/models/openai/whisper-large-v3";
   }
 
   async transcribeChunk(
@@ -38,7 +40,7 @@ export class HFClient {
     options: {
       language?: string;
       prompt?: string;
-    } = {}
+    } = {},
   ): Promise<HFTranscriptionResponse> {
     console.log("🤖 HuggingFace transcribeChunk called for chunk", chunk.index);
 
@@ -66,14 +68,24 @@ export class HFClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`HuggingFace API error: ${response.status} - ${errorText}`);
+        throw new Error(
+          `HuggingFace API error: ${response.status} - ${errorText}`,
+        );
       }
 
       const result = await response.json();
-      console.log("✅ HuggingFace transcription successful for chunk", chunk.index);
+      console.log(
+        "✅ HuggingFace transcription successful for chunk",
+        chunk.index,
+      );
       return result;
     } catch (error) {
-      console.error("❌ HuggingFace transcription failed for chunk", chunk.index, ":", error);
+      console.error(
+        "❌ HuggingFace transcription failed for chunk",
+        chunk.index,
+        ":",
+        error,
+      );
       throw error;
     }
   }
@@ -90,9 +102,13 @@ export class HFClient {
         progress: number;
         error?: string;
       }) => void;
-    } = {}
+    } = {},
   ): Promise<Array<HFTranscriptionResponse & { chunkIndex: number }>> {
-    console.log("🤖 HuggingFace transcribeChunks called with", chunks.length, "chunks");
+    console.log(
+      "🤖 HuggingFace transcribeChunks called with",
+      chunks.length,
+      "chunks",
+    );
 
     const results: Array<HFTranscriptionResponse & { chunkIndex: number }> = [];
     const errors: Array<{ chunkIndex: number; error: Error }> = [];
@@ -121,7 +137,7 @@ export class HFClient {
 
         // Add delay between requests to avoid rate limiting
         if (i < chunks.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       } catch (error) {
         console.error(`❌ Chunk ${i} failed:`, error);
@@ -141,8 +157,12 @@ export class HFClient {
     }
 
     if (errors.length > 0) {
-      const errorMessage = errors.map(e => `Chunk ${e.chunkIndex}: ${e.error.message}`).join("; ");
-      throw new Error(`Failed to transcribe ${errors.length} chunks: ${errorMessage}`);
+      const errorMessage = errors
+        .map((e) => `Chunk ${e.chunkIndex}: ${e.error.message}`)
+        .join("; ");
+      throw new Error(
+        `Failed to transcribe ${errors.length} chunks: ${errorMessage}`,
+      );
     }
 
     return results.sort((a, b) => a.chunkIndex - b.chunkIndex);
@@ -150,19 +170,19 @@ export class HFClient {
 }
 
 export function mergeHFTranscriptionResults(
-  results: Array<HFTranscriptionResponse & { chunkIndex: number }>
+  results: Array<HFTranscriptionResponse & { chunkIndex: number }>,
 ): HFTranscriptionResponse {
   if (results.length === 0) {
     return { text: "", segments: [] };
   }
 
   const mergedText = results
-    .map(result => result.text.trim())
-    .filter(text => text.length > 0)
+    .map((result) => result.text.trim())
+    .filter((text) => text.length > 0)
     .join(" ");
 
   const mergedSegments = results
-    .flatMap(result => result.segments || [])
+    .flatMap((result) => result.segments || [])
     .sort((a, b) => a.start - b.start);
 
   return {

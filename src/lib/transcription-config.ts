@@ -17,11 +17,24 @@ export const defaultConfig: TranscriptionConfig = {
 export function getTranscriptionConfig(): TranscriptionConfig {
   // Allow override via environment variables
   return {
-    providers: process.env.TRANSCRIPTION_PROVIDERS?.split(",") || defaultConfig.providers,
-    defaultProvider: process.env.DEFAULT_TRANSCRIPTION_PROVIDER || defaultConfig.defaultProvider,
-    timeoutMs: parseInt(process.env.TRANSCRIPTION_TIMEOUT_MS || defaultConfig.timeoutMs.toString()),
-    retryCount: parseInt(process.env.TRANSCRIPTION_RETRY_COUNT || defaultConfig.retryCount.toString()),
-    maxConcurrency: parseInt(process.env.TRANSCRIPTION_MAX_CONCURRENCY || defaultConfig.maxConcurrency.toString()),
+    providers:
+      process.env.TRANSCRIPTION_PROVIDERS?.split(",") ||
+      defaultConfig.providers,
+    defaultProvider:
+      process.env.DEFAULT_TRANSCRIPTION_PROVIDER ||
+      defaultConfig.defaultProvider,
+    timeoutMs: parseInt(
+      process.env.TRANSCRIPTION_TIMEOUT_MS ||
+        defaultConfig.timeoutMs.toString(),
+    ),
+    retryCount: parseInt(
+      process.env.TRANSCRIPTION_RETRY_COUNT ||
+        defaultConfig.retryCount.toString(),
+    ),
+    maxConcurrency: parseInt(
+      process.env.TRANSCRIPTION_MAX_CONCURRENCY ||
+        defaultConfig.maxConcurrency.toString(),
+    ),
   };
 }
 
@@ -50,34 +63,13 @@ export function getProviderSettings(provider: string): {
     case "hf":
       return {
         apiKey: process.env.HF_API_KEY,
-        baseUrl: "https://api-inference.huggingface.co/models/openai/whisper-large-v3",
+        baseUrl:
+          "https://api-inference.huggingface.co/models/openai/whisper-large-v3",
         model: "openai/whisper-large-v3",
         supportsLanguage: true,
         supportsPrompt: true,
         maxFileSize: 25 * 1024 * 1024, // 25MB
         maxDuration: 600, // 10 minutes
-      };
-
-    case "openai":
-      return {
-        apiKey: process.env.OPENAI_API_KEY,
-        baseUrl: "https://api.openai.com/v1",
-        model: "whisper-1",
-        supportsLanguage: true,
-        supportsPrompt: false,
-        maxFileSize: 25 * 1024 * 1024, // 25MB
-        maxDuration: 600, // 10 minutes
-      };
-
-    case "assemblyai":
-      return {
-        apiKey: process.env.ASSEMBLYAI_API_KEY,
-        baseUrl: "https://api.assemblyai.com/v2",
-        model: "whisper",
-        supportsLanguage: true,
-        supportsPrompt: false,
-        maxFileSize: 100 * 1024 * 1024, // 100MB
-        maxDuration: 3600, // 1 hour
       };
 
     default:
@@ -92,5 +84,5 @@ export function isProviderAvailable(provider: string): boolean {
 
 export function getAvailableProviders(): string[] {
   const config = getTranscriptionConfig();
-  return config.providers.filter(provider => isProviderAvailable(provider));
+  return config.providers.filter((provider) => isProviderAvailable(provider));
 }
