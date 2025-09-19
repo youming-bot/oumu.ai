@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 
 interface HoverCardProps {
   children: ReactNode;
@@ -15,7 +15,7 @@ export default function HoverCard({
   hoverContent,
   className = '',
   hoverClassName = '',
-  delay = 100
+  delay = 100,
 }: HoverCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showHover, setShowHover] = useState(false);
@@ -35,41 +35,33 @@ export default function HoverCard({
   };
 
   return (
-    <div 
+    <section
       className={`relative ${className}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      aria-label="Hover card"
     >
       {children}
-      
+
       {showHover && (
-        <div 
-          className={`
-            absolute z-50 bg-card border rounded-lg shadow-lg p-3 
-            transform origin-top transition-all duration-200
-            scale-95 opacity-0 group-hover:scale-100 group-hover:opacity-100
-            ${hoverClassName}
+        <div
+          className={`absolute z-50 origin-top scale-95 transform rounded-lg border bg-card p-3 opacity-0 shadow-lg transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 ${hoverClassName}
           `}
           style={{
             top: '100%',
             left: '50%',
             transform: 'translateX(-50%) translateY(8px)',
-            minWidth: '200px'
+            minWidth: '200px',
           }}
         >
           {/* Arrow */}
-          <div 
-            className="absolute -top-2 left-1/2 transform -translate-x-1/2
-                     w-4 h-4 bg-card border-t border-l rotate-45"
-          ></div>
-          
+          <div className="-top-2 -translate-x-1/2 absolute left-1/2 h-4 w-4 rotate-45 transform border-t border-l bg-card"></div>
+
           {/* Content */}
-          <div className="relative z-10">
-            {hoverContent}
-          </div>
+          <div className="relative z-10">{hoverContent}</div>
         </div>
       )}
-    </div>
+    </section>
   );
 }
 
@@ -77,7 +69,7 @@ export default function HoverCard({
 export function HoverEffect({
   children,
   className = '',
-  hoverClassName = 'scale-105'
+  hoverClassName = 'scale-105',
 }: {
   children: ReactNode;
   className?: string;
@@ -86,17 +78,15 @@ export function HoverEffect({
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div
-      className={`
-        transition-all duration-200 ease-out
-        ${isHovered ? hoverClassName : ''}
+    <fieldset
+      className={`transition-all duration-200 ease-out ${isHovered ? hoverClassName : ''}
         ${className}
       `}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {children}
-    </div>
+    </fieldset>
   );
 }
 
@@ -105,7 +95,7 @@ export function GradientHover({
   children,
   className = '',
   gradientFrom = 'from-blue-500/10',
-  gradientTo = 'to-purple-500/10'
+  gradientTo = 'to-purple-500/10',
 }: {
   children: ReactNode;
   className?: string;
@@ -115,25 +105,19 @@ export function GradientHover({
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div
-      className={`
-        relative overflow-hidden
-        transition-all duration-300 ease-out
-        ${className}
+    <fieldset
+      className={`relative overflow-hidden transition-all duration-300 ease-out ${className}
       `}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
       {children}
-      
+
       {/* Gradient overlay */}
       <div
-        className={`
-          absolute inset-0 bg-gradient-to-r ${gradientFrom} ${gradientTo}
-          transition-opacity duration-300
-          ${isHovered ? 'opacity-100' : 'opacity-0'}
+        className={`absolute inset-0 bg-gradient-to-r ${gradientFrom} ${gradientTo}transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}
         `}
       />
-    </div>
+    </fieldset>
   );
 }

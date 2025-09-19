@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 interface BeforeInstallPromptEvent extends Event {
@@ -19,9 +19,9 @@ export default function PWARegister() {
     const { outcome } = await deferredPrompt.userChoice;
 
     if (outcome === 'accepted') {
-      console.log('User accepted the install prompt');
+      // User accepted the install prompt
     } else {
-      console.log('User dismissed the install prompt');
+      // User dismissed the install prompt
     }
 
     setDeferredPrompt(null);
@@ -34,8 +34,6 @@ export default function PWARegister() {
       navigator.serviceWorker
         .register('/sw.js')
         .then((registration) => {
-          console.log('SW registered: ', registration);
-
           // Check for updates
           registration.addEventListener('updatefound', () => {
             const newWorker = registration.installing;
@@ -46,17 +44,17 @@ export default function PWARegister() {
                   toast.info('New version available! Restart to update.', {
                     action: {
                       label: 'Update',
-                      onClick: () => window.location.reload()
+                      onClick: () => window.location.reload(),
                     },
-                    duration: 10000
+                    duration: 10000,
                   });
                 }
               });
             }
           });
         })
-        .catch((registrationError) => {
-          console.log('SW registration failed: ', registrationError);
+        .catch((_registrationError) => {
+          // Service worker registration failed
         });
     }
 
@@ -69,15 +67,14 @@ export default function PWARegister() {
       toast.info('Install Shadowing Learning for a better experience!', {
         action: {
           label: 'Install',
-          onClick: () => handleInstallClick()
+          onClick: () => handleInstallClick(),
         },
-        duration: 8000
+        duration: 8000,
       });
     };
 
     // Handle app installed event
     const handleAppInstalled = () => {
-      console.log('App was installed');
       setShowInstallButton(false);
       toast.success('App installed successfully!');
     };
@@ -88,7 +85,6 @@ export default function PWARegister() {
 
     // Check if app is already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
-      console.log('App is running in standalone mode');
       setShowInstallButton(false);
     }
 

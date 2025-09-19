@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { WaveformGenerator, WaveformData } from '@/lib/waveform-generator';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  generateWaveform,
+  generateWaveformForFile,
+  type WaveformData,
+} from '@/lib/waveform-generator';
 
 interface WaveformDisplayProps {
   audioBlob?: Blob;
@@ -32,7 +36,7 @@ export default function WaveformDisplay({
   color = '#3b82f6',
   progressColor = '#10b981',
   showProgress = true,
-  className = ''
+  className = '',
 }: WaveformDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [waveformData, setWaveformData] = useState<WaveformData | null>(null);
@@ -47,27 +51,27 @@ export default function WaveformDisplay({
 
     try {
       let data: WaveformData;
-      
+
       if (audioBlob) {
-        data = await WaveformGenerator.generateWaveform(audioBlob, {
+        data = await generateWaveform(audioBlob, {
           resolution: 200,
           smoothing: true,
-          smoothingWindow: 3
+          smoothingWindow: 3,
         });
       } else if (audioUrl) {
         // Fetch the audio from URL and convert to blob
         const response = await fetch(audioUrl);
         const blob = await response.blob();
-        data = await WaveformGenerator.generateWaveform(blob, {
+        data = await generateWaveform(blob, {
           resolution: 200,
           smoothing: true,
-          smoothingWindow: 3
+          smoothingWindow: 3,
         });
       } else if (fileId) {
-        data = await WaveformGenerator.generateWaveformForFile(fileId, {
+        data = await generateWaveformForFile(fileId, {
           resolution: 200,
           smoothing: true,
-          smoothingWindow: 3
+          smoothingWindow: 3,
         });
       } else {
         throw new Error('No audio source provided');
@@ -75,7 +79,6 @@ export default function WaveformDisplay({
 
       setWaveformData(data);
     } catch (err) {
-      console.error('Failed to load waveform:', err);
       setError(err instanceof Error ? err.message : 'Failed to generate waveform');
     } finally {
       setIsLoading(false);
@@ -112,10 +115,10 @@ export default function WaveformDisplay({
     peaks.forEach((peak, index) => {
       const barHeight = peak * centerY;
       const x = index * barWidth;
-      
+
       const isPastProgress = index <= progressIndex;
       const fillColor = isPastProgress && showProgress ? progressColor : color;
-      
+
       ctx.fillStyle = fillColor;
       ctx.fillRect(x, centerY - barHeight / 2, barWidth - 1, barHeight);
     });
@@ -123,7 +126,7 @@ export default function WaveformDisplay({
     // Draw progress indicator
     if (showProgress && effectiveDuration > 0) {
       const progressX = progressRatio * canvas.width;
-      
+
       ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -161,14 +164,14 @@ export default function WaveformDisplay({
     const { width: containerWidth } = container.getBoundingClientRect();
     canvas.width = containerWidth;
     canvas.height = height;
-    
+
     drawWaveform();
   }, [height, drawWaveform]);
 
   useEffect(() => {
     handleCanvasResize();
     window.addEventListener('resize', handleCanvasResize);
-    
+
     return () => {
       window.removeEventListener('resize', handleCanvasResize);
     };
@@ -191,7 +194,7 @@ export default function WaveformDisplay({
       <Card className={`p-4 ${className}`}>
         <div className="text-center text-muted-foreground">
           <p>Failed to load waveform</p>
-          <p className="text-sm text-red-500">{error}</p>
+          <p className="text-red-500 text-sm">{error}</p>
         </div>
       </Card>
     );
@@ -204,14 +207,14 @@ export default function WaveformDisplay({
           ref={canvasRef}
           onClick={handleCanvasClick}
           className="w-full cursor-pointer rounded border"
-          style={{ 
+          style={{
             height: `${height}px`,
-            width: width
+            width: width,
           }}
         />
-        
+
         {waveformData && (
-          <div className="absolute top-2 right-2 text-xs text-muted-foreground bg-background/80 px-2 py-1 rounded">
+          <div className="absolute top-2 right-2 rounded bg-background/80 px-2 py-1 text-muted-foreground text-xs">
             {Math.round(currentTime)}s / {Math.round(duration || waveformData.duration)}s
           </div>
         )}

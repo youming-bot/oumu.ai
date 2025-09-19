@@ -24,15 +24,37 @@ global.IDBKeyRange = IDBKeyRange
 // Mock Blob and File for testing
 global.Blob = class Blob {
   constructor(data, options = {}) {
-    this.data = data;
-    this.type = options.type || '';
+    this.data = data
+    this.type = options.type || ''
   }
 
   arrayBuffer() {
-    return Promise.resolve(new ArrayBuffer(0));
+    if (this.data && this.data.length > 0) {
+      const totalSize = this.data.reduce((sum, item) => sum + (item.length || 1), 0)
+      const buffer = new ArrayBuffer(totalSize)
+      return Promise.resolve(buffer)
+    }
+    return Promise.resolve(new ArrayBuffer(1024)) // Default audio buffer size
   }
 }
-global.File = class File {}
+
+global.File = class File {
+  constructor(data, name, options = {}) {
+    this.data = data
+    this.name = name
+    this.type = options.type || ''
+    this.size = options.size || (data ? data.length : 0)
+  }
+
+  arrayBuffer() {
+    if (this.data && this.data.length > 0) {
+      const totalSize = this.data.reduce((sum, item) => sum + (item.length || 1), 0)
+      const buffer = new ArrayBuffer(totalSize)
+      return Promise.resolve(buffer)
+    }
+    return Promise.resolve(new ArrayBuffer(1024)) // Default audio buffer size
+  }
+}
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
@@ -41,9 +63,95 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
 }
 
+// Mock FormData for Jest environment
+global.FormData = class FormData {
+  constructor() {
+    this.data = new Map()
+  }
+
+  append(key, value, filename) {
+    // Handle Blob objects specifically for FormData
+    if (value instanceof Blob || (value && value.type && value.data)) {
+      this.data.set(key, {
+        value,
+        filename: filename || `blob_${Date.now()}`,
+        isBlob: true
+      })
+    } else {
+      this.data.set(key, value)
+    }
+  }
+
+  get(key) {
+    return this.data.get(key)
+  }
+
+  has(key) {
+    return this.data.has(key)
+  }
+
+  delete(key) {
+    return this.data.delete(key)
+  }
+
+  entries() {
+    return this.data.entries()
+  }
+
+  keys() {
+    return this.data.keys()
+  }
+
+  values() {
+    return this.data.values()
+  }
+
+  forEach(callback) {
+    this.data.forEach(callback)
+  }
+}
+
 // Mock structuredClone for Jest environment
 if (typeof global.structuredClone === 'undefined') {
   global.structuredClone = function structuredClone(obj) {
-    return JSON.parse(JSON.stringify(obj));
-  };
+    return JSON.parse(JSON.stringify(obj))
+  }
 }
+
+// Mock DataTransfer for drag and drop testing
+if (typeof global.DataTransfer === 'undefined') {
+  global.DataTransfer = class DataTransfer {
+    constructor() {
+      this.items = {
+        add: jest.fn((file) => {
+          if (!this.files) this.files = []
+          this.files.push(file)
+        })
+      }
+      this.files = []
+    }
+  }
+}
+
+// Mock URL API for object URLs
+if (typeof global.URL === 'undefined') {
+  global.URL = class URL {
+    constructor(url, base) {
+      this.url = url
+      this.base = base
+    }
+  }
+}
+
+// Mock URL.createObjectURL and URL.revokeObjectURL
+global.URL.createObjectURL = jest.fn().mockReturnValue('mock-object-url')
+global.URL.revokeObjectURL = jest.fn()
+
+// Mock window.URL for consistency
+if (typeof global.window === 'undefined') {
+  global.window = {}
+}
+global.window.URL = global.URL
+
+// Debug: Check if jest.setup.js is loaded
+console.log('jest.setup.js loaded - FormData, Blob, and URL mocks available')

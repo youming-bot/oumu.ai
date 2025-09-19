@@ -1,250 +1,432 @@
-import { TranscriptRow, Segment } from '@/types/database';
-import { DBUtils } from './db';
+import type { Term } from '@/types/database';
+import { getAudioDuration, processAudioFile } from './audio-processor';
+import { DbUtils } from './db';
+import { handleError, handleSilently, notFoundError } from './error-handler';
 
 export interface TranscriptionOptions {
   language?: string;
   chunkSeconds?: number;
   overlap?: number;
-  onProgress?: (progress: TranscriptionProgress) => void;
+  onProgress?: (progress: { progress: number; currentChunk: number; totalChunks: number }) => void;
 }
 
-export interface TranscriptionProgress {
-  fileId: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  progress: number;
-  currentChunk?: number;
-  totalChunks?: number;
-  error?: string;
-  transcriptId?: number;
-  estimatedTimeRemaining?: number;
+export interface TranscriptionResult {
+  text: string;
+  duration: number;
+  segments: Array<{
+    start: number;
+    end: number;
+    text: string;
+    wordTimestamps?: Array<{
+      word: string;
+      start: number;
+      end: number;
+    }>;
+  }>;
+  segmentCount: number;
+  processingTime: number;
 }
 
+export interface PostProcessOptions {
+  targetLanguage?: string;
+  enableAnnotations?: boolean;
+  enableFurigana?: boolean;
+  enableTerminology?: boolean;
+}
+
+export interface PostProcessResult {
+  processedSegments: number;
+  segments: Array<{
+    start: number;
+    end: number;
+    text: string;
+    normalizedText?: string;
+    translation?: string;
+    annotations?: string[];
+    furigana?: string;
+    wordTimestamps?: Array<{
+      word: string;
+      start: number;
+      end: number;
+    }>;
+  }>;
+}
+
+/**
+ * 转录音频文件
+ */
+export async function transcribeAudio(
+  fileId: number,
+  options: TranscriptionOptions = {}
+): Promise<TranscriptionResult> {
+  console.log(
+    '🎵 TranscriptionService.transcribeAudio called with fileId:',
+    fileId,
+    'options:',
+    options
+  );
+
+  try {
+    // 从客户端数据库获取文件数据
+    const file = await DbUtils.getFile(fileId);
+    if (!file) {
+      console.error('❌ File not found in database for fileId:', fileId);
+      throw notFoundError('文件未找到', { fileId });
+    }
+    console.log('✅ File found in database:', file.name, 'size:', file.size);
+
+    // 在客户端处理音频切片
+    console.log('🔄 Processing audio file into chunks...');
+    const chunks = await processAudioFile(
+      file.blob,
+      options.chunkSeconds || 45,
+      options.overlap || 0.2
+    );
+    console.log('✅ Audio processed into', chunks.length, 'chunks');
+
+    // 将音频块转换为可序列化的格式
+    console.log('🔄 Converting chunks to serializable format...');
+    const serializableChunks = await Promise.all(
+      chunks.map(async (chunk) => ({
+        arrayBuffer: {
+          data: Array.from(new Uint8Array(await chunk.blob.arrayBuffer())),
+        },
+        startTime: chunk.startTime,
+        endTime: chunk.endTime,
+        duration: chunk.duration,
+        index: chunk.index,
+      }))
+    );
+    console.log('✅ Chunks converted to serializable format');
+
+    // 准备文件数据
+    const fileArrayBuffer = await file.blob.arrayBuffer();
+    const duration = await getAudioDuration(file.blob);
+    console.log('📊 File duration:', duration, 'seconds');
+
+    // 调用 API 进行转录
+    const requestData = {
+      fileData: {
+        arrayBuffer: {
+          data: Array.from(new Uint8Array(fileArrayBuffer)),
+        },
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        duration: duration,
+      },
+      language: options.language || 'ja',
+      chunkSeconds: options.chunkSeconds || 45,
+      overlap: options.overlap || 0.2,
+      chunks: serializableChunks,
+    };
+
+    console.log('📡 Calling /api/transcribe API...');
+    console.log('📦 Request data summary:', {
+      fileName: requestData.fileData.name,
+      fileSize: requestData.fileData.size,
+      language: requestData.language,
+      chunkCount: requestData.chunks.length,
+    });
+
+    const response = await fetch('/api/transcribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestData),
+    });
+
+    console.log('📡 API Response status:', response.status, response.statusText);
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ API Error response:', errorData);
+      throw new Error(`转录失败: ${errorData.error || response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log('✅ API Response received:', result);
+
+    if (!result.success) {
+      console.error('❌ API returned unsuccessful result:', result);
+      throw new Error(`转录失败: ${result.error || '未知错误'}`);
+    }
+
+    console.log('🎉 Transcription completed successfully');
+    return result.data;
+  } catch (error) {
+    console.error('❌ Error in transcribeAudio:', error);
+    throw handleError(error, 'transcribeAudio');
+  }
+}
+
+/**
+ * 后处理转录结果
+ */
+export async function postProcessSegments(
+  segments: Array<{
+    start: number;
+    end: number;
+    text: string;
+    wordTimestamps?: Array<{
+      word: string;
+      start: number;
+      end: number;
+    }>;
+  }>,
+  language: string = 'ja',
+  options: PostProcessOptions = {}
+): Promise<PostProcessResult> {
+  try {
+    // 获取术语库（如果启用）
+    let terminology: Term[] = [];
+    if (options.enableTerminology) {
+      try {
+        terminology = await DbUtils.getAllTerms();
+      } catch (error) {
+        // 术语获取失败不影响主要处理流程，继续使用空术语列表
+        handleSilently(error, 'terminology-fetch');
+      }
+    }
+
+    // 调用 API 进行后处理
+    const requestData = {
+      segments,
+      language,
+      targetLanguage: options.targetLanguage || 'en',
+      enableAnnotations: options.enableAnnotations !== false,
+      enableFurigana: options.enableFurigana !== false,
+      enableTerminology: options.enableTerminology !== false,
+      terminology,
+    };
+
+    const response = await fetch('/api/postprocess', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`后处理失败: ${errorData.error || response.statusText}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(`后处理失败: ${result.error || '未知错误'}`);
+    }
+
+    return result.data;
+  } catch (error) {
+    throw handleError(error, 'postProcessSegments');
+  }
+}
+
+/**
+ * 通过转录ID进行后处理
+ */
+export async function postProcessSegmentsByTranscriptId(
+  transcriptId: number,
+  options: PostProcessOptions = {}
+): Promise<PostProcessResult> {
+  try {
+    // 获取转录记录
+    const transcript = await DbUtils.getTranscript(transcriptId);
+    if (!transcript) {
+      throw notFoundError('Transcript not found', { transcriptId });
+    }
+
+    // 检查转录状态
+    if (transcript.status !== 'completed') {
+      throw new Error('Transcript must be completed before post-processing');
+    }
+
+    // 获取转录的段落数据
+    const segments = await DbUtils.getSegmentsByTranscriptId(transcriptId);
+
+    // 调用后处理方法
+    return await postProcessSegments(segments, transcript.language || 'ja', options);
+  } catch (error) {
+    throw handleError(error, 'postProcessSegmentsByTranscriptId');
+  }
+}
+
+/**
+ * 完整的转录和后处理工作流
+ */
+export async function transcribeAndPostProcess(
+  fileId: number,
+  transcriptionOptions: TranscriptionOptions = {},
+  postProcessOptions: PostProcessOptions = {}
+): Promise<{
+  transcription: TranscriptionResult;
+  postProcessed: PostProcessResult;
+}> {
+  try {
+    // 第一步：转录
+    const transcription = await transcribeAudio(fileId, transcriptionOptions);
+
+    // 第二步：后处理
+    const postProcessed = await postProcessSegments(
+      transcription.segments,
+      transcriptionOptions.language || 'ja',
+      postProcessOptions
+    );
+
+    return {
+      transcription,
+      postProcessed,
+    };
+  } catch (error) {
+    throw handleError(error, 'transcribeAndPostProcess');
+  }
+}
+
+/**
+ * 获取转录进度（对于兼容性）
+ */
+export async function getTranscriptionProgress(fileId: number) {
+  try {
+    const transcripts = await DbUtils.getTranscriptsByFileId(fileId);
+    return {
+      hasTranscript: transcripts.length > 0,
+      isCompleted: transcripts.some((t) => t.status === 'completed'),
+      isProcessing: transcripts.some((t) => t.status === 'processing'),
+      transcripts,
+    };
+  } catch (error) {
+    throw handleError(error, 'getTranscriptionProgress');
+  }
+}
+
+/**
+ * 获取文件的转录记录
+ */
+export async function getFileTranscripts(fileId: number) {
+  try {
+    return await DbUtils.getTranscriptsByFileId(fileId);
+  } catch (error) {
+    throw handleError(error, 'getFileTranscripts');
+  }
+}
+
+/**
+ * 保存转录结果到数据库
+ */
+export async function saveTranscriptionResult(
+  fileId: number,
+  transcriptionResult: TranscriptionResult,
+  postProcessResult?: PostProcessResult
+): Promise<number> {
+  try {
+    // 创建转录记录
+    const transcriptId = await DbUtils.addTranscript({
+      fileId,
+      status: 'completed',
+      language: 'ja', // 从options中获取
+      rawText: transcriptionResult.text,
+      processingTime: transcriptionResult.processingTime,
+    });
+
+    // 保存段落数据
+    const segments = postProcessResult ? postProcessResult.segments : transcriptionResult.segments;
+
+    const segmentData = segments.map((segment) => ({
+      transcriptId,
+      start: segment.start,
+      end: segment.end,
+      text: segment.text,
+      normalizedText:
+        'normalizedText' in segment && typeof segment.normalizedText === 'string'
+          ? segment.normalizedText
+          : undefined,
+      translation:
+        'translation' in segment && typeof segment.translation === 'string'
+          ? segment.translation
+          : undefined,
+      annotations:
+        'annotations' in segment && Array.isArray(segment.annotations)
+          ? segment.annotations
+          : undefined,
+      furigana:
+        'furigana' in segment && typeof segment.furigana === 'string'
+          ? segment.furigana
+          : undefined,
+      wordTimestamps: segment.wordTimestamps || [],
+    }));
+
+    await DbUtils.addSegments(segmentData);
+
+    return transcriptId;
+  } catch (error) {
+    throw handleError(error, 'saveTranscriptionResult');
+  }
+}
+
+/**
+ * 向后兼容的 TranscriptionService 类（保留旧API）
+ */
+// biome-ignore lint/complexity/noStaticOnlyClass: Backward compatibility for existing code
 export class TranscriptionService {
-  private static activeTranscriptions = new Map<number, TranscriptionProgress>();
-
   static async transcribeAudio(
     fileId: number,
     options: TranscriptionOptions = {}
-  ): Promise<number> {
-    try {
-      const file = await DBUtils.getFile(fileId);
-      if (!file) {
-        throw new Error('File not found');
-      }
-
-      // Check if there's already a completed transcript
-      const existingTranscripts = await DBUtils.getTranscriptsByFileId(fileId);
-      const completedTranscript = existingTranscripts.find(t => t.status === 'completed');
-      
-      if (completedTranscript && completedTranscript.id) {
-        console.log('File already has a completed transcription');
-        return completedTranscript.id;
-      }
-
-      // Create a new transcript record
-      const transcriptId = await DBUtils.addTranscript({
-        fileId,
-        status: 'processing',
-        language: options.language || 'ja',
-      });
-
-      // Start transcription process
-      this.startTranscriptionProcess(fileId, transcriptId, options);
-
-      return transcriptId;
-
-    } catch (error) {
-      console.error('Failed to start transcription:', error);
-      throw new Error(`Transcription failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+  ): Promise<TranscriptionResult> {
+    return transcribeAudio(fileId, options);
   }
 
-  private static async startTranscriptionProcess(
+  static async postProcessSegments(
+    segments: Array<{
+      start: number;
+      end: number;
+      text: string;
+      wordTimestamps?: Array<{
+        word: string;
+        start: number;
+        end: number;
+      }>;
+    }>,
+    language: string = 'ja',
+    options: PostProcessOptions = {}
+  ): Promise<PostProcessResult> {
+    return postProcessSegments(segments, language, options);
+  }
+
+  static async postProcessSegmentsByTranscriptId(
+    transcriptId: number,
+    options: PostProcessOptions = {}
+  ): Promise<PostProcessResult> {
+    return postProcessSegmentsByTranscriptId(transcriptId, options);
+  }
+
+  static async transcribeAndPostProcess(
     fileId: number,
-    transcriptId: number,
-    options: TranscriptionOptions
-  ) {
-    try {
-      // Update progress
-      this.updateProgress(fileId, {
-        status: 'processing',
-        progress: 0,
-        transcriptId,
-      }, options);
-
-      // Call the transcription API
-      const response = await fetch('/api/transcribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          fileId,
-          language: options.language || 'ja',
-          chunkSeconds: options.chunkSeconds || 45,
-          overlap: options.overlap || 0.2,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Transcription failed');
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Transcription failed');
-      }
-
-      // Update progress to completed
-      this.updateProgress(fileId, {
-        status: 'completed',
-        progress: 100,
-      }, options);
-
-      console.log(`Transcription completed for file ${fileId}: ${result.text.length} characters`);
-
-    } catch (error) {
-      console.error('Transcription process failed:', error);
-      
-      // Update transcript status to failed
-      await DBUtils.updateTranscript(transcriptId, {
-        status: 'failed',
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-
-      this.updateProgress(fileId, {
-        status: 'failed',
-        progress: 0,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      }, options);
-    }
-  }
-
-  static async postProcessTranscript(
-    transcriptId: number,
-    options: {
-      targetLanguage?: string;
-      enableAnnotations?: boolean;
-      enableFurigana?: boolean;
-      enableTerminology?: boolean;
-    } = {}
-  ): Promise<void> {
-    try {
-      const transcript = await DBUtils.getTranscript(transcriptId);
-      if (!transcript) {
-        throw new Error('Transcript not found');
-      }
-
-      if (transcript.status !== 'completed') {
-        throw new Error('Transcript must be completed before post-processing');
-      }
-
-      // Call the post-processing API
-      const response = await fetch('/api/postprocess', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          transcriptId,
-          targetLanguage: options.targetLanguage || 'en',
-          enableAnnotations: options.enableAnnotations ?? true,
-          enableFurigana: options.enableFurigana ?? true,
-          enableTerminology: options.enableTerminology ?? true,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Post-processing failed');
-      }
-
-      const result = await response.json();
-
-      if (!result.success) {
-        throw new Error(result.error || 'Post-processing failed');
-      }
-
-      console.log(`Post-processing completed for transcript ${transcriptId}`);
-
-    } catch (error) {
-      console.error('Post-processing failed:', error);
-      throw new Error(`Post-processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  }
-
-  static async getTranscriptWithSegments(transcriptId: number): Promise<{
-    transcript: TranscriptRow;
-    segments: Segment[];
+    transcriptionOptions: TranscriptionOptions = {},
+    postProcessOptions: PostProcessOptions = {}
+  ): Promise<{
+    transcription: TranscriptionResult;
+    postProcessed: PostProcessResult;
   }> {
-    try {
-      return await DBUtils.getTranscriptWithSegments(transcriptId);
-    } catch (error) {
-      console.error('Failed to get transcript with segments:', error);
-      throw error;
-    }
+    return transcribeAndPostProcess(fileId, transcriptionOptions, postProcessOptions);
   }
 
-  static async getFileTranscripts(fileId: number): Promise<TranscriptRow[]> {
-    try {
-      return await DBUtils.getTranscriptsByFileId(fileId);
-    } catch (error) {
-      console.error('Failed to get file transcripts:', error);
-      throw error;
-    }
+  static async getTranscriptionProgress(fileId: number) {
+    return getTranscriptionProgress(fileId);
   }
 
-  static getTranscriptionProgress(fileId: number): TranscriptionProgress | undefined {
-    return this.activeTranscriptions.get(fileId);
+  static async getFileTranscripts(fileId: number) {
+    return getFileTranscripts(fileId);
   }
 
-  private static updateProgress(fileId: number, progress: Partial<TranscriptionProgress>, options?: TranscriptionOptions) {
-    const currentProgress = this.activeTranscriptions.get(fileId) || {
-      fileId,
-      status: 'pending',
-      progress: 0,
-    };
-
-    const newProgress = { ...currentProgress, ...progress };
-    this.activeTranscriptions.set(fileId, newProgress);
-
-    // Notify listeners via callback
-    if (options?.onProgress) {
-      options.onProgress(newProgress);
-    }
-  }
-
-  static clearProgress(fileId: number) {
-    this.activeTranscriptions.delete(fileId);
-  }
-
-  static async transcribeAndProcess(
+  static async saveTranscriptionResult(
     fileId: number,
-    transcriptionOptions?: TranscriptionOptions,
-    postProcessOptions?: {
-      targetLanguage?: string;
-      enableAnnotations?: boolean;
-      enableFurigana?: boolean;
-      enableTerminology?: boolean;
-    }
+    transcriptionResult: TranscriptionResult,
+    postProcessResult?: PostProcessResult
   ): Promise<number> {
-    try {
-      // Start transcription
-      const transcriptId = await this.transcribeAudio(fileId, transcriptionOptions);
-
-      // Wait for transcription to complete (simplified - in real app would use proper async handling)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Start post-processing
-      await this.postProcessTranscript(transcriptId, postProcessOptions);
-
-      return transcriptId;
-
-    } catch (error) {
-      console.error('Transcription and processing failed:', error);
-      throw error;
-    }
+    return saveTranscriptionResult(fileId, transcriptionResult, postProcessResult);
   }
 }

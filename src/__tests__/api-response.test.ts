@@ -37,17 +37,14 @@ describe('ApiResponse', () => {
       const testData = { id: 1 };
       ApiResponse.success(testData, 201);
 
-      expect(NextResponse.json).toHaveBeenCalledWith(
-        expect.any(Object),
-        { status: 201 }
-      );
+      expect(NextResponse.json).toHaveBeenCalledWith(expect.any(Object), { status: 201 });
     });
   });
 
   describe('error', () => {
     it('should create error response from AppError', () => {
       const appError = ErrorHandler.createError(
-        'DB_RECORD_NOT_FOUND',
+        'dbRecordNotFound',
         'File not found',
         { fileId: 123 },
         404
@@ -59,7 +56,7 @@ describe('ApiResponse', () => {
         {
           success: false,
           error: {
-            code: ErrorCodes.DB_RECORD_NOT_FOUND,
+            code: ErrorCodes.dbRecordNotFound,
             message: 'File not found',
             details: { fileId: 123 },
           },
@@ -79,7 +76,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.INTERNAL_SERVER_ERROR,
+            code: ErrorCodes.internalServerError,
             message: 'Database connection failed',
           }),
         }),
@@ -95,7 +92,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.INTERNAL_SERVER_ERROR,
+            code: ErrorCodes.internalServerError,
             message: 'Unknown error occurred',
           }),
         }),
@@ -109,10 +106,7 @@ describe('ApiResponse', () => {
       const data = { id: 1 };
       ApiResponse.created(data);
 
-      expect(NextResponse.json).toHaveBeenCalledWith(
-        expect.any(Object),
-        { status: 201 }
-      );
+      expect(NextResponse.json).toHaveBeenCalledWith(expect.any(Object), { status: 201 });
     });
 
     it('should create bad request response', () => {
@@ -122,7 +116,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.API_VALIDATION_ERROR,
+            code: ErrorCodes.apiValidationError,
             message: 'Invalid input',
           }),
         }),
@@ -137,7 +131,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.DB_RECORD_NOT_FOUND,
+            code: ErrorCodes.dbRecordNotFound,
             message: 'User not found',
           }),
         }),
@@ -152,7 +146,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.INTERNAL_SERVER_ERROR,
+            code: ErrorCodes.internalServerError,
             message: 'Database error',
           }),
         }),
@@ -167,7 +161,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.API_AUTH_ERROR,
+            code: ErrorCodes.apiAuthError,
             message: 'Access denied',
           }),
         }),
@@ -182,7 +176,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.API_AUTH_ERROR,
+            code: ErrorCodes.apiAuthError,
             message: 'Forbidden operation',
           }),
         }),
@@ -197,7 +191,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.API_RATE_LIMIT,
+            code: ErrorCodes.apiRateLimit,
             message: 'Rate limit exceeded',
           }),
         }),
@@ -212,7 +206,7 @@ describe('ApiResponse', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({
-            code: ErrorCodes.SERVICE_UNAVAILABLE,
+            code: ErrorCodes.serviceUnavailable,
             message: 'Service down',
           }),
         }),

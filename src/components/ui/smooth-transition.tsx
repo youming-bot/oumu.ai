@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, ReactNode } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
 interface SmoothTransitionProps {
   children: ReactNode;
@@ -13,7 +13,7 @@ export default function SmoothTransition({
   children,
   isVisible,
   duration = 300,
-  className = ''
+  className = '',
 }: SmoothTransitionProps) {
   const [shouldRender, setShouldRender] = useState(isVisible);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -22,18 +22,18 @@ export default function SmoothTransition({
     if (isVisible) {
       setShouldRender(true);
       setIsAnimating(true);
-      
+
       // Force reflow to ensure animation starts
       requestAnimationFrame(() => {
         setIsAnimating(true);
       });
     } else {
       setIsAnimating(false);
-      
+
       const timer = setTimeout(() => {
         setShouldRender(false);
       }, duration);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isVisible, duration]);
@@ -59,7 +59,7 @@ export function FadeTransition({
   children,
   isVisible,
   duration = 300,
-  className = ''
+  className = '',
 }: SmoothTransitionProps) {
   const [shouldRender, setShouldRender] = useState(isVisible);
 
@@ -70,7 +70,7 @@ export function FadeTransition({
       const timer = setTimeout(() => {
         setShouldRender(false);
       }, duration);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isVisible, duration]);
@@ -96,7 +96,7 @@ export function SlideTransition({
   isVisible,
   direction = 'up',
   duration = 300,
-  className = ''
+  className = '',
 }: SmoothTransitionProps & { direction?: 'up' | 'down' | 'left' | 'right' }) {
   const [shouldRender, setShouldRender] = useState(isVisible);
 
@@ -107,7 +107,7 @@ export function SlideTransition({
       const timer = setTimeout(() => {
         setShouldRender(false);
       }, duration);
-      
+
       return () => clearTimeout(timer);
     }
   }, [isVisible, duration]);
@@ -115,11 +115,16 @@ export function SlideTransition({
   const getTransform = () => {
     if (!isVisible) {
       switch (direction) {
-        case 'up': return 'translateY(20px)';
-        case 'down': return 'translateY(-20px)';
-        case 'left': return 'translateX(20px)';
-        case 'right': return 'translateX(-20px)';
-        default: return 'translateY(20px)';
+        case 'up':
+          return 'translateY(20px)';
+        case 'down':
+          return 'translateY(-20px)';
+        case 'left':
+          return 'translateX(20px)';
+        case 'right':
+          return 'translateX(-20px)';
+        default:
+          return 'translateY(20px)';
       }
     }
     return 'translate(0)';

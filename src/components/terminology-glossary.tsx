@@ -1,13 +1,34 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { BookOpen, Search, Plus, X, Edit3 } from 'lucide-react';
+import {
+  BookOpen,
+  CheckCircle,
+  CheckSquare,
+  Download,
+  Search,
+  Square,
+  Trash2,
+  Upload,
+} from 'lucide-react';
+import { useId, useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
+import { useBatchOperations } from '@/hooks/useBatchOperations';
+import { useTerminologyFilters } from '@/hooks/useTerminologyFilters';
+import { AddTermDialog } from './add-term-dialog';
+import { EditTermDialog } from './edit-term-dialog';
+import { TermCard } from './term-card';
 
 export interface Term {
   id?: number;
@@ -17,6 +38,11 @@ export interface Term {
   category?: string;
   examples?: string[];
   tags?: string[];
+  difficulty?: 'easy' | 'medium' | 'hard';
+  learned?: boolean;
+  reviewCount?: number;
+  lastReviewed?: Date;
+  nextReview?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,370 +60,338 @@ export default function TerminologyGlossary({
   onAddTerm,
   onUpdateTerm,
   onDeleteTerm,
-  className = ''
+  className = '',
 }: TerminologyGlossaryProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [filteredTerms, setFilteredTerms] = useState<Term[]>(terms);
-  const [isAdding, setIsAdding] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [difficultyFilter, setDifficultyFilter] = useState<string>('all');
+  const [learnedFilter, setLearnedFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'word' | 'createdAt' | 'reviewCount' | 'difficulty'>('word');
+  const [_isAdding, _setIsAdding] = useState(false);
   const [editingTerm, setEditingTerm] = useState<Term | null>(null);
-  const [newTerm, setNewTerm] = useState<Omit<Term, 'id'>>({
-    word: '',
-    reading: '',
-    meaning: '',
-    category: '',
-    examples: [],
-    tags: [],
-    createdAt: new Date(),
-    updatedAt: new Date()
+  const [importData, setImportData] = useState<string>('');
+
+  const importDataId = useId();
+
+  // 使用自定义Hook管理过滤和排序
+  const { filteredAndSortedTerms, allCategories } = useTerminologyFilters({
+    terms,
+    searchQuery,
+    categoryFilter,
+    difficultyFilter,
+    learnedFilter,
+    sortBy,
   });
 
-  useEffect(() => {
-    const filtered = terms.filter(term => 
-      term.word.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      term.meaning.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      term.reading?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      term.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      term.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-    setFilteredTerms(filtered);
-  }, [searchQuery, terms]);
-
-  const handleAddTerm = async () => {
-    if (!newTerm.word.trim() || !newTerm.meaning.trim()) return;
-    
-    try {
-      await onAddTerm?.(newTerm);
-      setNewTerm({
-        word: '',
-        reading: '',
-        meaning: '',
-        category: '',
-        examples: [],
-        tags: [],
-        createdAt: new Date(),
-        updatedAt: new Date()
-      });
-      setIsAdding(false);
-    } catch (error) {
-      console.error('Failed to add term:', error);
-    }
-  };
+  // 使用自定义Hook管理批量操作
+  const {
+    selectedTerms,
+    batchMode,
+    handleTermSelect,
+    handleSelectAll,
+    handleBatchDelete,
+    handleBatchMarkLearned,
+    handleBatchModeToggle,
+  } = useBatchOperations({
+    terms,
+    onUpdateTerm,
+    onDeleteTerm,
+  });
 
   const handleUpdateTerm = async () => {
     if (!editingTerm || !editingTerm.word.trim() || !editingTerm.meaning.trim()) return;
-    
+
     try {
       await onUpdateTerm?.(editingTerm);
       setEditingTerm(null);
-    } catch (error) {
-      console.error('Failed to update term:', error);
+    } catch (_error) {
+      // 静默处理更新术语错误，避免中断用户操作
+      toast.error('Failed to update term');
     }
   };
 
   const handleDeleteTerm = async (id: number) => {
     if (!confirm('Are you sure you want to delete this term?')) return;
-    
+
     try {
       await onDeleteTerm?.(id);
-    } catch (error) {
-      console.error('Failed to delete term:', error);
+    } catch (_error) {
+      // 静默处理删除术语错误，避免中断用户操作
+      toast.error('Failed to delete term');
     }
   };
 
-  const addExample = () => {
-    setNewTerm(prev => ({
-      ...prev,
-      examples: [...(prev.examples || []), '']
-    }));
+  const handleExportTerms = () => {
+    const dataStr = JSON.stringify(terms, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `terms-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('术语导出成功');
   };
 
-  const updateExample = (index: number, value: string) => {
-    setNewTerm(prev => ({
-      ...prev,
-      examples: prev.examples?.map((ex, i) => i === index ? value : ex) || []
-    }));
-  };
+  const handleImportTerms = () => {
+    try {
+      const importedTerms = JSON.parse(importData);
+      if (!Array.isArray(importedTerms)) {
+        throw new Error('导入数据格式错误');
+      }
 
-  const removeExample = (index: number) => {
-    setNewTerm(prev => ({
-      ...prev,
-      examples: prev.examples?.filter((_, i) => i !== index) || []
-    }));
-  };
+      const validTerms = importedTerms.map((term: Partial<Term>) => ({
+        word: term.word || '',
+        reading: term.reading || '',
+        meaning: term.meaning || '',
+        category: term.category || '',
+        examples: term.examples || [],
+        tags: term.tags || [],
+        difficulty: term.difficulty || 'medium',
+        learned: term.learned || false,
+        reviewCount: term.reviewCount || 0,
+        createdAt: term.createdAt ? new Date(term.createdAt) : new Date(),
+        updatedAt: term.updatedAt ? new Date(term.updatedAt) : new Date(),
+      }));
 
-  const addTag = () => {
-    setNewTerm(prev => ({
-      ...prev,
-      tags: [...(prev.tags || []), '']
-    }));
-  };
-
-  const updateTag = (index: number, value: string) => {
-    setNewTerm(prev => ({
-      ...prev,
-      tags: prev.tags?.map((tag, i) => i === index ? value : tag) || []
-    }));
-  };
-
-  const removeTag = (index: number) => {
-    setNewTerm(prev => ({
-      ...prev,
-      tags: prev.tags?.filter((_, i) => i !== index) || []
-    }));
+      Promise.all(validTerms.map((term) => onAddTerm?.(term)))
+        .then(() => {
+          setImportData('');
+          toast.success(`成功导入 ${validTerms.length} 个术语`);
+        })
+        .catch(() => {
+          toast.error('导入失败');
+        });
+    } catch (_error) {
+      toast.error('导入数据格式错误');
+    }
   };
 
   return (
     <Card className={`p-6 ${className}`}>
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="text-lg font-medium flex items-center">
-          <BookOpen className="w-5 h-5 mr-2" />
+      <div className="mb-6 flex items-center justify-between">
+        <h3 className="flex items-center font-medium text-lg">
+          <BookOpen className="mr-2 h-5 w-5" />
           Terminology Glossary
         </h3>
-        
-        <Dialog open={isAdding} onOpenChange={setIsAdding}>
-          <DialogTrigger asChild>
-            <Button size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Term
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Term</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Word *</label>
-                <Input
-                  value={newTerm.word}
-                  onChange={(e) => setNewTerm(prev => ({ ...prev, word: e.target.value }))}
-                  placeholder="Enter word or phrase"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Reading</label>
-                <Input
-                  value={newTerm.reading || ''}
-                  onChange={(e) => setNewTerm(prev => ({ ...prev, reading: e.target.value }))}
-                  placeholder="Reading (e.g., furigana)"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Meaning *</label>
-                <Input
-                  value={newTerm.meaning}
-                  onChange={(e) => setNewTerm(prev => ({ ...prev, meaning: e.target.value }))}
-                  placeholder="Enter meaning"
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Category</label>
-                <Input
-                  value={newTerm.category || ''}
-                  onChange={(e) => setNewTerm(prev => ({ ...prev, category: e.target.value }))}
-                  placeholder="Category (e.g., grammar, vocabulary)"
-                />
-              </div>
-              
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium">Examples</label>
-                  <Button type="button" variant="outline" size="sm" onClick={addExample}>
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add
-                  </Button>
-                </div>
-                {newTerm.examples?.map((example, index) => (
-                  <div key={index} className="flex items-center space-x-2 mb-2">
-                    <Input
-                      value={example}
-                      onChange={(e) => updateExample(index, e.target.value)}
-                      placeholder="Example sentence"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeExample(index)}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium">Tags</label>
-                  <Button type="button" variant="outline" size="sm" onClick={addTag}>
-                    <Plus className="w-3 h-3 mr-1" />
-                    Add
-                  </Button>
-                </div>
-                {newTerm.tags?.map((tag, index) => (
-                  <div key={index} className="flex items-center space-x-2 mb-2">
-                    <Input
-                      value={tag}
-                      onChange={(e) => updateTag(index, e.target.value)}
-                      placeholder="Tag"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeTag(index)}
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setIsAdding(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleAddTerm} disabled={!newTerm.word.trim() || !newTerm.meaning.trim()}>
-                  Add Term
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
+
+        <div className="flex items-center space-x-2">
+          <Button
+            variant={batchMode ? 'secondary' : 'outline'}
+            size="sm"
+            onClick={handleBatchModeToggle}
+          >
+            <CheckSquare className="mr-2 h-4 w-4" />
+            批量操作
+          </Button>
+
+          <Button variant="outline" size="sm" onClick={handleExportTerms}>
+            <Download className="mr-2 h-4 w-4" />
+            导出
+          </Button>
+
+          {onAddTerm && <AddTermDialog onAddTerm={onAddTerm} />}
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-6">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-        <Input
-          placeholder="Search terms..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* 搜索和过滤 */}
+      <div className="mb-6 space-y-4">
+        <div className="relative">
+          <Search className="-translate-y-1/2 absolute top-1/2 left-3 h-4 w-4 transform text-muted-foreground" />
+          <Input
+            placeholder="搜索术语..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+            aria-label="搜索术语"
+          />
+        </div>
+
+        <div className="flex flex-wrap gap-4">
+          <div className="flex items-center space-x-2">
+            <Label className="text-sm">分类:</Label>
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="w-32 rounded-md border border-gray-300 p-2"
+            >
+              <option value="all">全部分类</option>
+              {allCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Label className="text-sm">难度:</Label>
+            <select
+              value={difficultyFilter}
+              onChange={(e) => setDifficultyFilter(e.target.value)}
+              className="w-32 rounded-md border border-gray-300 p-2"
+            >
+              <option value="all">全部难度</option>
+              <option value="easy">简单</option>
+              <option value="medium">中等</option>
+              <option value="hard">困难</option>
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Label className="text-sm">学习状态:</Label>
+            <select
+              value={learnedFilter}
+              onChange={(e) => setLearnedFilter(e.target.value)}
+              className="w-32 rounded-md border border-gray-300 p-2"
+            >
+              <option value="all">全部状态</option>
+              <option value="learned">已学习</option>
+              <option value="unlearned">未学习</option>
+            </select>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Label className="text-sm">排序:</Label>
+            <select
+              value={sortBy}
+              onChange={(e) =>
+                setSortBy(e.target.value as 'word' | 'createdAt' | 'reviewCount' | 'difficulty')
+              }
+              className="w-32 rounded-md border border-gray-300 p-2"
+            >
+              <option value="word">按词汇</option>
+              <option value="createdAt">按创建时间</option>
+              <option value="reviewCount">按复习次数</option>
+              <option value="difficulty">按难度</option>
+            </select>
+          </div>
+        </div>
       </div>
+
+      {/* 批处理操作栏 */}
+      {batchMode && (
+        <Card className="mb-4 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleSelectAll(filteredAndSortedTerms)}
+              >
+                {selectedTerms.size === filteredAndSortedTerms.length ? '取消全选' : '全选'}
+              </Button>
+              <span className="text-muted-foreground text-sm">
+                已选择 {selectedTerms.size} 个术语
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBatchMarkLearned(true)}
+                disabled={selectedTerms.size === 0}
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                标记已学习
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleBatchMarkLearned(false)}
+                disabled={selectedTerms.size === 0}
+              >
+                <Square className="mr-2 h-4 w-4" />
+                标记未学习
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleBatchDelete}
+                disabled={selectedTerms.size === 0}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除选中
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* 导入功能 */}
+      <Card className="mb-4 p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Upload className="mr-2 h-4 w-4" />
+                  导入术语
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>导入术语</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor={importDataId}>JSON 数据</Label>
+                    <textarea
+                      id={importDataId}
+                      placeholder="粘贴 JSON 格式的术语数据..."
+                      value={importData}
+                      onChange={(e) => setImportData(e.target.value)}
+                      rows={6}
+                      className="w-full rounded-md border border-gray-300 p-2"
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button variant="outline" onClick={() => setImportData('')}>
+                      取消
+                    </Button>
+                    <Button onClick={handleImportTerms} disabled={!importData.trim()}>
+                      导入
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </Card>
 
       {/* Terms List */}
       <ScrollArea className="h-96">
         <div className="space-y-4">
-          {filteredTerms.length === 0 ? (
-            <div className="text-center text-muted-foreground py-8">
-              {terms.length === 0 ? 'No terms yet. Add your first term!' : 'No terms match your search.'}
+          {filteredAndSortedTerms.length === 0 ? (
+            <div className="py-8 text-center text-muted-foreground">
+              {terms.length === 0
+                ? 'No terms yet. Add your first term!'
+                : 'No terms match your search.'}
             </div>
           ) : (
-            filteredTerms.map((term) => (
-              <Card key={term.id} className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <h4 className="font-semibold">{term.word}</h4>
-                      {term.reading && (
-                        <span className="text-sm text-muted-foreground">({term.reading})</span>
-                      )}
-                    </div>
-                    
-                    <p className="text-sm mb-3">{term.meaning}</p>
-                    
-                    {term.category && (
-                      <Badge variant="secondary" className="mb-2">
-                        {term.category}
-                      </Badge>
-                    )}
-                    
-                    {term.tags && term.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {term.tags.map((tag, index) => (
-                          <Badge key={index} variant="outline">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {term.examples && term.examples.length > 0 && (
-                      <div className="space-y-1">
-                        <p className="text-xs font-medium text-muted-foreground">Examples:</p>
-                        {term.examples.map((example, index) => (
-                          <p key={index} className="text-sm text-muted-foreground">• {example}</p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex space-x-2 ml-4">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setEditingTerm(term)}
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </Button>
-                    {term.id && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => term.id && handleDeleteTerm(term.id)}
-                      >
-                        <X className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </Card>
+            filteredAndSortedTerms.map((term) => (
+              <TermCard
+                key={term.id}
+                term={term}
+                batchMode={batchMode}
+                isSelected={term.id ? selectedTerms.has(term.id) : false}
+                onSelect={handleTermSelect}
+                onEdit={setEditingTerm}
+                onDelete={handleDeleteTerm}
+              />
             ))
           )}
         </div>
       </ScrollArea>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editingTerm} onOpenChange={(open) => !open && setEditingTerm(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Term</DialogTitle>
-          </DialogHeader>
-          
-          {editingTerm && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Word *</label>
-                <Input
-                  value={editingTerm.word}
-                  onChange={(e) => setEditingTerm(prev => prev ? { ...prev, word: e.target.value } : null)}
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Reading</label>
-                <Input
-                  value={editingTerm.reading || ''}
-                  onChange={(e) => setEditingTerm(prev => prev ? { ...prev, reading: e.target.value } : null)}
-                />
-              </div>
-              
-              <div>
-                <label className="text-sm font-medium">Meaning *</label>
-                <Input
-                  value={editingTerm.meaning}
-                  onChange={(e) => setEditingTerm(prev => prev ? { ...prev, meaning: e.target.value } : null)}
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setEditingTerm(null)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleUpdateTerm}>
-                  Update Term
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      {onUpdateTerm && (
+        <EditTermDialog
+          editingTerm={editingTerm}
+          setEditingTerm={setEditingTerm}
+          onUpdateTerm={handleUpdateTerm}
+        />
+      )}
     </Card>
   );
 }

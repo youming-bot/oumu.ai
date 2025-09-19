@@ -1,8 +1,8 @@
-import { Term } from '@/types/database';
+import type { Term } from '@/types/database';
 
-const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat-v3.1:free';
+const BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+const API_KEY = process.env.OPENROUTER_API_KEY;
+const MODEL = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat-v3.1:free';
 
 export interface PostProcessRequest {
   text: string;
@@ -37,6 +37,7 @@ export interface PostProcessOptions {
   enableAnnotations?: boolean;
   enableFurigana?: boolean;
   enableTerminology?: boolean;
+  customTerminology?: Term[];
   maxRetries?: number;
   timeout?: number;
 }
@@ -62,277 +63,343 @@ export class OpenRouterRateLimitError extends OpenRouterClientError {
   }
 }
 
-export class OpenRouterClient {
-  private static readonly BASE_URL = OPENROUTER_BASE_URL;
-  private static readonly API_KEY = OPENROUTER_API_KEY;
-  private static readonly MODEL = OPENROUTER_MODEL;
+const DEFAULT_OPTIONS: PostProcessOptions = {
+  targetLanguage: 'en',
+  enableAnnotations: true,
+  enableFurigana: true,
+  enableTerminology: true,
+  maxRetries: 3,
+};
 
-  private static readonly DEFAULT_OPTIONS: PostProcessOptions = {
-    targetLanguage: 'en',
-    enableAnnotations: true,
-    enableFurigana: true,
-    enableTerminology: true,
-    maxRetries: 3,
-  };
+/**
+ * 发送请求到OpenRouter API
+ */
+async function makeRequest(
+  endpoint: string,
+  options: RequestInit,
+  retries: number = 3
+): Promise<Response> {
+  if (!API_KEY) {
+    throw new OpenRouterClientError('OpenRouter API key not configured');
+  }
 
-  private static async makeRequest(
-    endpoint: string,
-    options: RequestInit,
-    retries: number = 3
-  ): Promise<Response> {
-    if (!this.API_KEY) {
-      throw new OpenRouterClientError('OpenRouter API key not configured');
-    }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+  try {
+    const response = await fetch(`${BASE_URL}${endpoint}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        authorization: `Bearer ${API_KEY}`,
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'Shadowing Learning',
+        ...options.headers,
+      },
+    });
 
-    try {
-      const response = await fetch(`${this.BASE_URL}${endpoint}`, {
-        ...options,
-        signal: controller.signal,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.API_KEY}`,
-          'HTTP-Referer': 'http://localhost:3000',
-          'X-Title': 'Shadowing Learning',
-          ...options.headers,
-        },
-      });
+    clearTimeout(timeoutId);
 
-      clearTimeout(timeoutId);
-
+    if (!response.ok) {
       if (response.status === 429) {
-        const retryAfter = parseInt(response.headers.get('Retry-After') || '60');
-        throw new OpenRouterRateLimitError('Rate limit exceeded', retryAfter);
+        throw new OpenRouterRateLimitError('Rate limit exceeded');
       }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new OpenRouterClientError(
-          `OpenRouter API error: ${response.status} ${response.statusText}`,
-          response.status,
-          errorData
-        );
-      }
-
-      return response;
-
-    } catch (error) {
-      clearTimeout(timeoutId);
-
-      if (error instanceof OpenRouterClientError) {
-        throw error;
-      }
-
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new OpenRouterClientError('Request timeout');
-      }
-
-      if (retries > 0) {
-        console.log(`Retrying request... (${retries} retries left)`);
-        await new Promise(resolve => setTimeout(resolve, 1000 * (4 - retries)));
-        return this.makeRequest(endpoint, options, retries - 1);
-      }
-
       throw new OpenRouterClientError(
-        `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`
+        `HTTP ${response.status}: ${response.statusText}`,
+        response.status
       );
     }
+
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+
+    if (error instanceof OpenRouterRateLimitError && retries > 0) {
+      const retryAfter = (error as OpenRouterRateLimitError).retryAfter || 1000;
+      await delayMs(retryAfter);
+      return makeRequest(endpoint, options, retries - 1);
+    }
+
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new OpenRouterClientError('Request timeout', 408);
+    }
+
+    throw error;
   }
+}
 
-  static async postProcessText(
-    text: string,
-    sourceLanguage: string = 'ja',
-    options: PostProcessOptions = {},
-    terminology?: Term[]
-  ): Promise<PostProcessResponse> {
-    const startTime = Date.now();
-    const mergedOptions = { ...this.DEFAULT_OPTIONS, ...options };
+/**
+ * 构建提示词用于后处理
+ */
+function buildPrompt(
+  text: string,
+  sourceLanguage: string,
+  targetLanguage?: string,
+  enableAnnotations: boolean = true,
+  enableFurigana: boolean = true,
+  enableTerminology: boolean = true,
+  customTerminology?: Term[]
+): string {
+  let basePrompt = `You are a professional language teacher specializing in Japanese language learning and shadowing practice.
 
-    try {
-      if (!text.trim()) {
-        throw new OpenRouterClientError('Text cannot be empty');
-      }
+Task: Process the following ${sourceLanguage} text for language learners.
 
-      const prompt = this.buildProcessingPrompt(
-        text,
-        sourceLanguage,
-        mergedOptions.targetLanguage || 'en',
-        mergedOptions,
-        terminology
-      );
-
-      const response = await this.makeRequest('/chat/completions', {
-        method: 'POST',
-        body: JSON.stringify({
-          model: this.MODEL,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a helpful assistant that processes and enhances text for language learning.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          max_tokens: 2000,
-          temperature: 0.1,
-        }),
-      });
-
-      const data = await response.json();
-      const resultText = data.choices?.[0]?.message?.content;
-
-      if (!resultText) {
-        throw new OpenRouterClientError('No response from OpenRouter');
-      }
-
-      const processedResult = this.parseResponse(resultText);
-
-      return {
-        ...processedResult,
-        processingTime: Date.now() - startTime,
-      };
-
-    } catch (error) {
-      console.error('OpenRouter post-processing failed:', error);
-      throw error;
-    }
-  }
-
-  static async postProcessSegments(
-    segments: PostProcessSegment[],
-    sourceLanguage: string = 'ja',
-    options: PostProcessOptions = {},
-    terminology?: Term[]
-  ): Promise<PostProcessSegment[]> {
-    const processedSegments: PostProcessSegment[] = [];
-    
-    for (const segment of segments) {
-      try {
-        const result = await this.postProcessText(
-          segment.originalText,
-          sourceLanguage,
-          options,
-          terminology
-        );
-
-        processedSegments.push({
-          ...segment,
-          normalizedText: result.normalizedText,
-          translation: result.translation,
-          annotations: result.annotations,
-          furigana: result.furigana,
-        });
-
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-      } catch (error) {
-        console.error(`Failed to process segment: ${segment.originalText}`, error);
-        processedSegments.push(segment);
-      }
-    }
-
-    return processedSegments;
-  }
-
-  private static buildProcessingPrompt(
-    text: string,
-    sourceLanguage: string,
-    targetLanguage: string,
-    options: PostProcessOptions,
-    terminology?: Term[]
-  ): string {
-    const tasks: string[] = ['Normalize the text into proper sentences'];
-
-    if (options.enableAnnotations) {
-      tasks.push('Add linguistic annotations (grammar points, usage notes)');
-    }
-
-    if (options.enableFurigana && sourceLanguage === 'ja') {
-      tasks.push('Add furigana readings for kanji');
-    }
-
-    if (options.targetLanguage && options.targetLanguage !== sourceLanguage) {
-      tasks.push(`Provide ${targetLanguage} translation`);
-    }
-
-    if (options.enableTerminology) {
-      tasks.push('Identify and explain key terminology');
-    }
-
-    let terminologyContext = '';
-    if (terminology && terminology.length > 0 && options.enableTerminology) {
-      terminologyContext = `\n\nAvailable terminology for reference:\n${terminology.map(term =>
-        `- ${term.word}${term.reading ? ` (${term.reading})` : ''}: ${term.meaning}${term.examples && term.examples.length > 0 ?
-          `\n  Examples: ${term.examples.join(', ')}` : ''}${term.tags && term.tags.length > 0 ?
-          `\n  Tags: ${term.tags.join(', ')}` : ''}`
-      ).join('\n')}`;
-    }
-
-    return `
-Please process the following ${sourceLanguage} text for language learning purposes:
-
-"""
+Input:
 ${text}
-"""${terminologyContext}
 
-Tasks to perform:
-1. ${tasks.join('\n2. ')}
+Requirements:
+1. Normalize the text (remove filler words, fix grammar, etc.)
+2. ${targetLanguage ? `Provide translation to ${targetLanguage}` : 'Keep original language'}`;
 
-Please respond with a JSON object containing:
-- normalizedText: the cleaned and normalized text
-- ${options.targetLanguage && options.targetLanguage !== sourceLanguage ? 'translation: the English translation\n- ' : ''}${options.enableAnnotations ? 'annotations: array of linguistic annotations\n- ' : ''}${options.enableFurigana && sourceLanguage === 'ja' ? 'furigana: text with furigana readings\n- ' : ''}${options.enableTerminology ? 'terminology: object of key terms and explanations' : ''}
-
-Return only valid JSON, no other text.
-    `.trim();
+  if (enableAnnotations) {
+    basePrompt += `
+3. Add grammatical and cultural annotations`;
   }
 
-  private static parseResponse(responseText: string): Omit<PostProcessResponse, 'processingTime'> {
-    try {
-      const jsonMatch = responseText.match(/\{([\s\S]*)\}/);
-      if (!jsonMatch) {
-        throw new OpenRouterClientError('Invalid response format from OpenRouter');
-      }
-
-      const parsed = JSON.parse(jsonMatch[0]);
-
-      return {
-        normalizedText: parsed.normalizedText || '',
-        translation: parsed.translation,
-        annotations: parsed.annotations,
-        furigana: parsed.furigana,
-        terminology: parsed.terminology,
-      };
-
-    } catch (error) {
-      console.error('Failed to parse OpenRouter response:', responseText);
-      throw new OpenRouterClientError(
-        'Failed to parse processing response',
-        undefined,
-        responseText
-      );
-    }
+  if (enableFurigana && sourceLanguage === 'ja') {
+    basePrompt += `
+4. Include furigana for kanji`;
   }
 
-  static async healthCheck(): Promise<boolean> {
-    try {
-      await this.makeRequest('/models', {
-        method: 'GET',
-      });
-      return true;
-    } catch {
-      return false;
-    }
+  if (enableTerminology) {
+    basePrompt += `
+5. Extract key vocabulary and provide explanations`;
   }
 
-  static getConfig() {
+  if (customTerminology && customTerminology.length > 0) {
+    basePrompt += `
+
+Custom Terminology (use these translations):
+${customTerminology.map((term) => `- ${term.word}: ${term.reading} (${term.meaning})`).join('\n')}`;
+  }
+
+  basePrompt += `
+
+Output format:
+{
+  "normalizedText": "Clean, normalized text",
+  "translation": "Translation if requested",
+  "annotations": ["List of annotations"],
+  "furigana": "Text with furigana if applicable",
+  "terminology": {"term": "reading and definition"}
+}`;
+
+  return basePrompt;
+}
+
+/**
+ * 解析OpenRouter响应
+ */
+function parseResponse(responseText: string): PostProcessResponse {
+  try {
+    const response = JSON.parse(responseText);
     return {
-      baseUrl: this.BASE_URL,
-      model: this.MODEL,
-      hasApiKey: !!this.API_KEY,
+      normalizedText: response.normalizedText || response.text || '',
+      translation: response.translation,
+      annotations: response.annotations || [],
+      furigana: response.furigana,
+      terminology: response.terminology || {},
+      processingTime: response.processingTime || 0,
     };
+  } catch (error) {
+    throw new OpenRouterClientError('Failed to parse OpenRouter response', 500, error);
   }
+}
+
+/**
+ * 处理单个文本段
+ */
+export async function postProcessText(
+  text: string,
+  sourceLanguage: string,
+  options: PostProcessOptions = {}
+): Promise<PostProcessResponse> {
+  const finalOptions = { ...DEFAULT_OPTIONS, ...options };
+  const startTime = Date.now();
+
+  const prompt = buildPrompt(
+    text,
+    sourceLanguage,
+    finalOptions.targetLanguage,
+    finalOptions.enableAnnotations,
+    finalOptions.enableFurigana,
+    finalOptions.enableTerminology
+  );
+
+  const response = await makeRequest('/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a professional language teacher specializing in Japanese language learning and shadowing practice. Provide accurate, educational responses that help learners understand and practice the language.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.3,
+      maxTokens: 2000,
+    }),
+  });
+
+  const result = await response.json();
+  const responseText = result.choices?.[0]?.message?.content || '';
+
+  const processedResponse = parseResponse(responseText);
+  processedResponse.processingTime = Date.now() - startTime;
+
+  return processedResponse;
+}
+
+/**
+ * 批量处理文本段
+ */
+export async function postProcessSegments(
+  segments: Array<{ text: string; start: number; end: number }>,
+  sourceLanguage: string,
+  options: PostProcessOptions = {}
+): Promise<PostProcessSegment[]> {
+  const finalOptions = { ...DEFAULT_OPTIONS, ...options };
+
+  // Process segments in batches to avoid overwhelming the API
+  const batchSize = 5;
+  const results: PostProcessSegment[] = [];
+
+  for (let i = 0; i < segments.length; i += batchSize) {
+    const batch = segments.slice(i, i + batchSize);
+    const batchResults = await Promise.all(
+      batch.map(async (segment) => {
+        const response = await postProcessText(segment.text, sourceLanguage, finalOptions);
+        return {
+          originalText: segment.text,
+          normalizedText: response.normalizedText,
+          translation: response.translation,
+          annotations: response.annotations,
+          furigana: response.furigana,
+          start: segment.start,
+          end: segment.end,
+        };
+      })
+    );
+    results.push(...batchResults);
+  }
+
+  return results;
+}
+
+/**
+ * 使用自定义术语处理文本
+ */
+export async function postProcessWithTerminology(
+  text: string,
+  sourceLanguage: string,
+  terminology: Term[],
+  options: PostProcessOptions = {}
+): Promise<PostProcessResponse> {
+  const finalOptions = { ...DEFAULT_OPTIONS, ...options };
+  const startTime = Date.now();
+
+  const prompt = buildPrompt(
+    text,
+    sourceLanguage,
+    finalOptions.targetLanguage,
+    finalOptions.enableAnnotations,
+    finalOptions.enableFurigana,
+    finalOptions.enableTerminology,
+    terminology
+  );
+
+  const response = await makeRequest('/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a professional language teacher specializing in Japanese language learning and shadowing practice. Use the provided terminology consistently in your translations and explanations.',
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      temperature: 0.3,
+      maxTokens: 2000,
+    }),
+  });
+
+  const result = await response.json();
+  const responseText = result.choices?.[0]?.message?.content || '';
+
+  const processedResponse = parseResponse(responseText);
+  processedResponse.processingTime = Date.now() - startTime;
+
+  return processedResponse;
+}
+
+/**
+ * 验证API配置
+ */
+export function validateConfiguration(): {
+  isValid: boolean;
+  errors: string[];
+} {
+  const errors: string[] = [];
+
+  if (!API_KEY) {
+    errors.push('OpenRouter API key is not configured');
+  }
+
+  if (!BASE_URL) {
+    errors.push('OpenRouter base URL is not configured');
+  }
+
+  if (!MODEL) {
+    errors.push('OpenRouter model is not configured');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+/**
+ * 获取支持的模型列表
+ */
+export function getSupportedModels(): Array<{
+  id: string;
+  name: string;
+  description: string;
+}> {
+  return [
+    {
+      id: 'deepseek/deepseek-chat-v3.1:free',
+      name: 'DeepSeek Chat v3.1',
+      description: 'Free tier model with good multilingual capabilities',
+    },
+    {
+      id: 'anthropic/claude-3.5-sonnet',
+      name: 'Claude 3.5 Sonnet',
+      description: 'High-performance model with excellent language understanding',
+    },
+    {
+      id: 'openai/gpt-4o',
+      name: 'GPT-4o',
+      description: 'Latest OpenAI model with multimodal capabilities',
+    },
+  ];
+}
+
+/**
+ * 延迟函数
+ */
+async function delayMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

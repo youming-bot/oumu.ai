@@ -1,4 +1,4 @@
-import { FileRow, TranscriptRow } from '@/types/database';
+import type { FileRow, TranscriptRow } from '@/types/database';
 
 export interface ViewState {
   currentView: 'upload' | 'files' | 'player' | 'settings' | 'terminology';

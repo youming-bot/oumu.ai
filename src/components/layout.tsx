@@ -1,14 +1,14 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { Upload, FileText, Play, Settings, BookOpen } from 'lucide-react';
+import { BookOpen, FileText, Play, Settings, Upload } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   NavigationMenu,
-  NavigationMenuList,
   NavigationMenuItem,
+  NavigationMenuList,
 } from '@/components/ui/navigation-menu';
 import { Separator } from '@/components/ui/separator';
-import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 
 interface LayoutProps {
@@ -29,14 +29,14 @@ export default function Layout({ children, currentView = 'upload', onViewChange 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-card border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+      <header className="border-b bg-card">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-2xl font-bold text-foreground">Shadowing Learning</h1>
+              <h1 className="font-bold text-2xl text-foreground">Shadowing Learning</h1>
               <Separator orientation="vertical" className="h-6" />
             </div>
-            
+
             {/* Navigation */}
             <NavigationMenu>
               <NavigationMenuList className="space-x-1">
@@ -47,10 +47,14 @@ export default function Layout({ children, currentView = 'upload', onViewChange 
                       <Button
                         variant={currentView === item.id ? 'secondary' : 'ghost'}
                         size="sm"
-                        onClick={() => onViewChange?.(item.id as 'upload' | 'files' | 'player' | 'settings' | 'terminology')}
+                        onClick={() =>
+                          onViewChange?.(
+                            item.id as 'upload' | 'files' | 'player' | 'settings' | 'terminology'
+                          )
+                        }
                         className="flex items-center gap-2"
                       >
-                        <Icon className="w-4 h-4" />
+                        <Icon className="h-4 w-4" />
                         {item.label}
                       </Button>
                     </NavigationMenuItem>
@@ -63,9 +67,7 @@ export default function Layout({ children, currentView = 'upload', onViewChange 
       </header>
 
       {/* Main content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {children}
-      </main>
+      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">{children}</main>
 
       {/* Toast notifications */}
       <Toaster />

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface ProgressiveLoadingProps {
   isLoading: boolean;
@@ -13,7 +13,7 @@ export default function ProgressiveLoading({
   isLoading,
   estimatedTime,
   message = 'Processing...',
-  className = ''
+  className = '',
 }: ProgressiveLoadingProps) {
   const [progress, setProgress] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -36,7 +36,7 @@ export default function ProgressiveLoading({
         setProgress(calculatedProgress);
       } else {
         // Indeterminate progress that slowly increases
-        setProgress(prev => Math.min(85, prev + 0.5));
+        setProgress((prev) => Math.min(85, prev + 0.5));
       }
     }, 100);
 
@@ -48,25 +48,27 @@ export default function ProgressiveLoading({
   const remainingTime = estimatedTime ? Math.max(0, estimatedTime - elapsedTime) : undefined;
 
   return (
-    <div className={`fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 ${className}`}>
-      <div className="bg-card border rounded-lg p-6 shadow-lg max-w-sm w-full mx-4">
-        <div className="text-center space-y-4">
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm ${className}`}
+    >
+      <div className="mx-4 w-full max-w-sm rounded-lg border bg-card p-6 shadow-lg">
+        <div className="space-y-4 text-center">
           {/* Animated spinner */}
-          <div className="relative mx-auto w-12 h-12">
-            <div className="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
-            <div 
-              className="absolute inset-0 border-4 border-primary rounded-full border-t-transparent animate-spin"
+          <div className="relative mx-auto h-12 w-12">
+            <div className="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+            <div
+              className="absolute inset-0 animate-spin rounded-full border-4 border-primary border-t-transparent"
               style={{
                 animationDuration: '1s',
-                animationTimingFunction: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)'
+                animationTimingFunction: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)',
               }}
             ></div>
           </div>
 
           {/* Progress bar */}
-          <div className="w-full bg-secondary rounded-full h-2">
-            <div 
-              className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
+          <div className="h-2 w-full rounded-full bg-secondary">
+            <div
+              className="h-2 rounded-full bg-primary transition-all duration-300 ease-out"
               style={{ width: `${progress}%` }}
             ></div>
           </div>
@@ -74,29 +76,27 @@ export default function ProgressiveLoading({
           {/* Message and timing */}
           <div className="space-y-1">
             <p className="font-medium text-sm">{message}</p>
-            
+
             {estimatedTime && remainingTime !== undefined && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-muted-foreground text-xs">
                 Estimated time remaining: {Math.ceil(remainingTime)}s
               </p>
             )}
-            
+
             {!estimatedTime && (
-              <p className="text-xs text-muted-foreground">
-                This may take a few moments...
-              </p>
+              <p className="text-muted-foreground text-xs">This may take a few moments...</p>
             )}
           </div>
 
           {/* Pulsing dots for additional visual feedback */}
           <div className="flex justify-center space-x-1">
-            {[0, 1, 2].map(i => (
+            {[0, 1, 2].map((i) => (
               <div
-                key={i}
-                className="w-2 h-2 bg-primary/60 rounded-full animate-pulse"
+                key={`dot-${i}`}
+                className="h-2 w-2 animate-pulse rounded-full bg-primary/60"
                 style={{
                   animationDelay: `${i * 0.2}s`,
-                  animationDuration: '1.5s'
+                  animationDuration: '1.5s',
                 }}
               ></div>
             ))}

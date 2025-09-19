@@ -1,46 +1,26 @@
 # Repository Guidelines
 
-This guide aligns contributors on structure, commands, style, testing, and security for this Next.js (App Router) + React + TypeScript + Tailwind + shadcn/ui + Dexie project.
-
 ## Project Structure & Module Organization
-- `app/` routes and API routes (e.g., `app/api/transcribe/route.ts`, `app/api/postprocess/route.ts`).
-- `components/` UI (player, subtitles, cards).
-- `lib/` utilities (segmentation/merge, OpenRouter client, schema).
-- `db/` Dexie schema/types for `files` and `transcripts`.
-- `public/` static assets.
-- `tests/` unit/e2e tests. Data stays local in the browser (IndexedDB); do not persist audio on the server.
+This Next.js app router project organizes routes, server actions, and API handlers inside `src/app/<feature>` using kebab-case folders. Shared UI, hooks, and utilities live in `src/components/`, `src/hooks/`, and `src/lib/`, while reusable contracts go in `src/types/`; keep feature-only helpers alongside their modules. Place colocated unit tests near the code or move broader suites to `src/__tests__/`, reserve `test/` for end-to-end flows, store static assets in `public/`, and keep docs or diagrams within `docs/`.
 
 ## Build, Test, and Development Commands
-- Prereqs: Node 18+, npm/pnpm, `.env.local` with `GROQ_API_KEY`, `OPENROUTER_API_KEY`, etc.
-- Dev: `npm run dev` — start Next.js in dev mode.
-- Build: `npm run build`; Run: `npm start` (built server).
-- Quality: `npm run lint`, `npm run format`, `npm run typecheck`.
-- Tests: `npm test` (unit), `npm run test:e2e` (Playwright), `npm test -- --watch` for local loops.
+- `npm run dev` — start the dev server (requires `.env.local`).
+- `npm run build` / `npm start` — create and verify the production bundle.
+- `npm run lint` — run Biome; `npm run format` applies fixes.
+- `npm run type-check` — execute `tsc --noEmit`.
+- `npm test` | `npm run test:watch` | `npm run test:coverage` — run Jest once, in watch mode, or with coverage.
 
 ## Coding Style & Naming Conventions
-- TypeScript strict; 2‑space indent; no implicit `any`.
-- ESLint + Prettier; prefer fix‑on‑save.
-- Names: `camelCase` (vars/functions), `PascalCase` (components/types), `kebab-case` for route folders/files under `app/`.
-- Keep modules focused; co‑locate small helpers near features.
+Write strict TypeScript with 2-space indentation, prefer `const`, and annotate export return types. Trust Biome for formatting JSX, Tailwind class lists, and import order; avoid manual reflows. Use `camelCase` for variables and functions, `PascalCase` for components and types, selective `SCREAMING_SNAKE_CASE` constants, and `kebab-case` route directories.
 
 ## Testing Guidelines
-- Unit: Vitest/Jest; cover `lib/` and API routes; target ≥80% statements/branches.
-- E2E: Playwright for upload → transcribe → postprocess → shadowing.
-- Files: `*.test.ts` or `*.spec.ts` next to source or under `tests/`.
-- Mocks: MSW for `/api/*` and OpenRouter/Groq stubs.
+Rely on Jest with Testing Library for components, hooks, and server actions. Name files `*.test.ts[x]`, colocate them when practical, and keep Dexie-backed suites under `fake-indexeddb`. Maintain ≥80% statement and branch coverage, and document any intentional gaps or flaky paths in the PR notes.
 
 ## Commit & Pull Request Guidelines
-- Commits: Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`) with scopes like `api`, `ui`, `lib`, `db`.
-- PRs: clear description, linked issues, screenshots for UI, notes on env/DB changes, and evidence of tests (unit/e2e). Keep diffs small and atomic.
+Adopt Conventional Commits (for example `feat: transcription queue`, `fix: api cache`, `chore: update docs`). PRs should explain scope, link issues, attach UI evidence when visuals change, and highlight env or config updates. Confirm recent lint, type-check, and test runs, and flag areas needing focused review.
 
 ## Security & Configuration Tips
-- Never persist audio on the server; proxy to STT; set `Cache-Control: no-store` on `/api/*`.
-- Stream `FormData` to Groq; avoid disk writes; validate with Zod.
-- Enforce chunk limits, concurrency caps, backoff; redact secrets in logs.
-- Store keys in `.env.local`; never commit secrets.
+Stream audio directly to Groq without persisting blobs, and store credentials only in `.env.local`. Ensure `/api/*` responses set `Cache-Control: no-store` and validate payloads with Zod before side effects. Apply exponential backoff and conservative concurrency when calling Groq or OpenRouter services.
 
-## Agent-Specific Instructions
-- Prefer minimal, surgical diffs aligned with the architecture; keep filenames stable.
-- Do not add licenses or unrelated refactors.
-- Obey AGENTS.md scoping: nested AGENTS.md files override within their directories.
-
+## Agent-Specific Notes
+Keep diffs tight and aligned with existing architecture; skip opportunistic refactors. Check deeper folders for additional `AGENTS.md` files and defer to the most local guidance.

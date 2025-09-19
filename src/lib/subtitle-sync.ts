@@ -1,4 +1,4 @@
-import { Segment } from '@/types/database';
+import type { Segment } from '@/types/database';
 
 export interface Subtitle {
   id: number;
@@ -27,29 +27,47 @@ export interface SubtitleState {
   allSubtitles: Subtitle[];
 }
 
-export class SubtitleSynchronizer {
-  private subtitles: Subtitle[] = [];
-  private currentTime: number = 0;
-  private options: Required<SubtitleSyncOptions>;
-  private updateCallback: ((state: SubtitleState) => void) | null = null;
+export interface SubtitleSynchronizerInstance {
+  updateTime: (currentTime: number) => void;
+  getCurrentState: () => SubtitleState;
+  seekToSubtitle: (subtitleId: number) => number | null;
+  findSubtitleAtTime: (time: number) => Subtitle | null;
+  findNearestSubtitle: (time: number) => Subtitle | null;
+  getSubtitleTextAtTime: (time: number) => string;
+  getSubtitlesInRange: (startTime: number, endTime: number) => Subtitle[];
+  getDuration: () => number;
+  getSubtitleCount: () => number;
+  onUpdate: (callback: (state: SubtitleState) => void) => void;
+  destroy: () => void;
+}
 
-  constructor(
-    segments: Segment[],
-    options: SubtitleSyncOptions = {}
-  ) {
-    this.options = {
-      preloadTime: options.preloadTime ?? 1.0,
-      postloadTime: options.postloadTime ?? 0.5,
-      syncThreshold: options.syncThreshold ?? 0.1,
-      maxSubtitles: options.maxSubtitles ?? 5,
-    };
+export interface AbLoopManagerInstance {
+  setLoop: (startTime: number, endTime: number) => void;
+  clearLoop: () => void;
+  checkLoop: (currentTime: number) => boolean;
+  onLoop: (callback: (time: number) => void) => void;
+  getLoopRange: () => { start: number; end: number };
+  isActive: () => boolean;
+}
 
-    this.initializeSubtitles(segments);
-  }
+// 函数式实现
+function createSubtitleSynchronizer(
+  segments: Segment[],
+  options: SubtitleSyncOptions = {}
+): SubtitleSynchronizerInstance {
+  let subtitles: Subtitle[] = [];
+  let currentTime: number = 0;
+  const resolvedOptions: Required<SubtitleSyncOptions> = {
+    preloadTime: options.preloadTime ?? 1.0,
+    postloadTime: options.postloadTime ?? 0.5,
+    syncThreshold: options.syncThreshold ?? 0.1,
+    maxSubtitles: options.maxSubtitles ?? 5,
+  };
+  let updateCallback: ((state: SubtitleState) => void) | null = null;
 
-  private initializeSubtitles(segments: Segment[]) {
-    this.subtitles = segments
-      .filter(segment => segment.text && segment.start !== undefined && segment.end !== undefined)
+  function initializeSubtitles(segmentsToProcess: Segment[]) {
+    subtitles = segmentsToProcess
+      .filter((segment) => segment.text && segment.start !== undefined && segment.end !== undefined)
       .map((segment, index) => ({
         id: segment.id || index,
         start: segment.start,
@@ -65,78 +83,80 @@ export class SubtitleSynchronizer {
       .sort((a, b) => a.start - b.start);
   }
 
-  updateTime(currentTime: number) {
-    this.currentTime = currentTime;
-    this.updateActiveSubtitles();
-  }
+  function updateActiveSubtitles() {
+    const activeSubtitles = findActiveSubtitles();
 
-  private updateActiveSubtitles() {
-    const activeSubtitles = this.findActiveSubtitles();
-    
-    this.subtitles.forEach(subtitle => {
-      subtitle.isActive = activeSubtitles.some(active => active.id === subtitle.id);
+    subtitles.forEach((subtitle) => {
+      subtitle.isActive = activeSubtitles.some((active) => active.id === subtitle.id);
     });
 
-    this.notifyUpdate();
+    notifyUpdate();
   }
 
-  private findActiveSubtitles(): Subtitle[] {
-    return this.subtitles.filter(subtitle => 
-      this.isSubtitleActive(subtitle, this.currentTime)
-    );
+  function findActiveSubtitles(): Subtitle[] {
+    return subtitles.filter((subtitle) => isSubtitleActive(subtitle, currentTime));
   }
 
-  private isSubtitleActive(subtitle: Subtitle, currentTime: number): boolean {
-    const adjustedStart = subtitle.start - this.options.preloadTime;
-    const adjustedEnd = subtitle.end + this.options.postloadTime;
-    
-    return currentTime >= adjustedStart && currentTime <= adjustedEnd;
+  function isSubtitleActive(subtitle: Subtitle, time: number): boolean {
+    const adjustedStart = subtitle.start - resolvedOptions.preloadTime;
+    const adjustedEnd = subtitle.end + resolvedOptions.postloadTime;
+
+    return time >= adjustedStart && time <= adjustedEnd;
   }
 
-  getCurrentState(): SubtitleState {
-    const currentSubtitle = this.subtitles.find(subtitle => 
-      this.currentTime >= subtitle.start && this.currentTime <= subtitle.end
-    ) || null;
+  function notifyUpdate() {
+    if (updateCallback) {
+      updateCallback(getCurrentState());
+    }
+  }
 
-    const upcomingSubtitles = this.subtitles
-      .filter(subtitle => subtitle.start > this.currentTime)
-      .slice(0, this.options.maxSubtitles);
+  function updateTime(newTime: number) {
+    currentTime = newTime;
+    updateActiveSubtitles();
+  }
 
-    const previousSubtitles = this.subtitles
-      .filter(subtitle => subtitle.end < this.currentTime)
-      .slice(-this.options.maxSubtitles);
+  function getCurrentState(): SubtitleState {
+    const currentSubtitle =
+      subtitles.find((subtitle) => currentTime >= subtitle.start && currentTime <= subtitle.end) ||
+      null;
+
+    const upcomingSubtitles = subtitles
+      .filter((subtitle) => subtitle.start > currentTime)
+      .slice(0, resolvedOptions.maxSubtitles);
+
+    const previousSubtitles = subtitles
+      .filter((subtitle) => subtitle.end < currentTime)
+      .slice(-resolvedOptions.maxSubtitles);
 
     return {
       currentSubtitle,
       upcomingSubtitles,
       previousSubtitles,
-      allSubtitles: this.subtitles,
+      allSubtitles: subtitles,
     };
   }
 
-  seekToSubtitle(subtitleId: number): number | null {
-    const subtitle = this.subtitles.find(s => s.id === subtitleId);
+  function seekToSubtitle(subtitleId: number): number | null {
+    const subtitle = subtitles.find((s) => s.id === subtitleId);
     if (!subtitle) return null;
 
     return subtitle.start;
   }
 
-  findSubtitleAtTime(time: number): Subtitle | null {
-    return this.subtitles.find(subtitle => 
-      time >= subtitle.start && time <= subtitle.end
-    ) || null;
+  function findSubtitleAtTime(time: number): Subtitle | null {
+    return subtitles.find((subtitle) => time >= subtitle.start && time <= subtitle.end) || null;
   }
 
-  findNearestSubtitle(time: number): Subtitle | null {
-    if (this.subtitles.length === 0) return null;
+  function findNearestSubtitle(time: number): Subtitle | null {
+    if (subtitles.length === 0) return null;
 
     let nearestSubtitle: Subtitle | null = null;
     let minDistance = Infinity;
 
-    for (const subtitle of this.subtitles) {
+    for (const subtitle of subtitles) {
       const subtitleMiddle = (subtitle.start + subtitle.end) / 2;
       const distance = Math.abs(time - subtitleMiddle);
-      
+
       if (distance < minDistance) {
         minDistance = distance;
         nearestSubtitle = subtitle;
@@ -146,106 +166,115 @@ export class SubtitleSynchronizer {
     return nearestSubtitle;
   }
 
-  getSubtitleTextAtTime(time: number): string {
-    const subtitle = this.findSubtitleAtTime(time);
+  function getSubtitleTextAtTime(time: number): string {
+    const subtitle = findSubtitleAtTime(time);
     return subtitle?.text || '';
   }
 
-  getSubtitlesInRange(startTime: number, endTime: number): Subtitle[] {
-    return this.subtitles.filter(subtitle => 
-      subtitle.end >= startTime && subtitle.start <= endTime
-    );
+  function getSubtitlesInRange(startTime: number, endTime: number): Subtitle[] {
+    return subtitles.filter((subtitle) => subtitle.end >= startTime && subtitle.start <= endTime);
   }
 
-  getDuration(): number {
-    if (this.subtitles.length === 0) return 0;
-    
-    const lastSubtitle = this.subtitles[this.subtitles.length - 1];
+  function getDuration(): number {
+    if (subtitles.length === 0) return 0;
+
+    const lastSubtitle = subtitles[subtitles.length - 1];
     return lastSubtitle.end;
   }
 
-  getSubtitleCount(): number {
-    return this.subtitles.length;
+  function getSubtitleCount(): number {
+    return subtitles.length;
   }
 
-  onUpdate(callback: (state: SubtitleState) => void) {
-    this.updateCallback = callback;
+  function onUpdate(callback: (state: SubtitleState) => void) {
+    updateCallback = callback;
   }
 
-  private notifyUpdate() {
-    if (this.updateCallback) {
-      this.updateCallback(this.getCurrentState());
-    }
+  function destroy() {
+    updateCallback = null;
+    subtitles = [];
   }
 
-  destroy() {
-    this.updateCallback = null;
-    this.subtitles = [];
-  }
+  // Initialize
+  initializeSubtitles(segments);
+
+  return {
+    updateTime,
+    getCurrentState,
+    seekToSubtitle,
+    findSubtitleAtTime,
+    findNearestSubtitle,
+    getSubtitleTextAtTime,
+    getSubtitlesInRange,
+    getDuration,
+    getSubtitleCount,
+    onUpdate,
+    destroy,
+  };
 }
 
-export class SubtitleRenderer {
-  static renderSubtitle(subtitle: Subtitle, showTranslation: boolean = false): string {
-    if (!subtitle) return '';
+// SubtitleRenderer 函数
+export function renderSubtitle(subtitle: Subtitle, showTranslation: boolean = false): string {
+  if (!subtitle) return '';
 
-    let renderedText = subtitle.normalizedText || subtitle.text;
+  let renderedText = subtitle.normalizedText || subtitle.text;
 
-    if (showTranslation && subtitle.translation) {
-      renderedText += `\n<small class="text-gray-600">${subtitle.translation}</small>`;
-    }
-
-    if (subtitle.furigana) {
-      renderedText = this.addFurigana(renderedText, subtitle.furigana);
-    }
-
-    return renderedText;
+  if (showTranslation && subtitle.translation) {
+    renderedText += `\n<small class="text-gray-600">${subtitle.translation}</small>`;
   }
 
-  private static addFurigana(text: string, _furigana: string): string {
-    // TODO: Implement furigana rendering
-    return text;
+  if (subtitle.furigana) {
+    renderedText = addFurigana(renderedText, subtitle.furigana);
   }
 
-  static createSubtitleElement(subtitle: Subtitle, isActive: boolean = false): HTMLElement {
-    const div = document.createElement('div');
-    div.className = `subtitle ${isActive ? 'subtitle-active' : 'subtitle-inactive'}`;
-    
-    div.innerHTML = this.renderSubtitle(subtitle, true);
-    
-    div.setAttribute('data-start', subtitle.start.toString());
-    div.setAttribute('data-end', subtitle.end.toString());
-    div.setAttribute('data-id', subtitle.id.toString());
-
-    return div;
-  }
+  return renderedText;
 }
 
-export class ABLoopManager {
-  private startTime: number = 0;
-  private endTime: number = 0;
-  private isLooping: boolean = false;
-  private loopCallback: ((time: number) => void) | null = null;
+function addFurigana(text: string, _furigana: string): string {
+  // TODO: Implement furigana rendering
+  return text;
+}
 
-  setLoop(startTime: number, endTime: number) {
-    this.startTime = startTime;
-    this.endTime = endTime;
-    this.isLooping = true;
+export function createSubtitleElement(subtitle: Subtitle, isActive: boolean = false): HTMLElement {
+  const div = document.createElement('div');
+  div.className = `subtitle ${isActive ? 'subtitle-active' : 'subtitle-inactive'}`;
+
+  div.innerHTML = renderSubtitle(subtitle, true);
+
+  div.setAttribute('data-start', subtitle.start.toString());
+  div.setAttribute('data-end', subtitle.end.toString());
+  div.setAttribute('data-id', subtitle.id.toString());
+
+  return div;
+}
+
+// AbLoopManager 函数
+export function createAbLoopManager(): AbLoopManagerInstance {
+  let startTime: number = 0;
+  let endTime: number = 0;
+  let isLooping: boolean = false;
+  let loopCallback: ((time: number) => void) | null = null;
+
+  function setLoop(start: number, end: number) {
+    startTime = start;
+    endTime = end;
+    isLooping = true;
   }
 
-  clearLoop() {
-    this.isLooping = false;
-    this.startTime = 0;
-    this.endTime = 0;
+  function clearLoop() {
+    isLooping = false;
+    startTime = 0;
+    endTime = 0;
   }
 
-  checkLoop(currentTime: number): boolean {
-    if (!this.isLooping || this.endTime <= this.startTime) {
+  function checkLoop(currentTime: number): boolean {
+    if (!isLooping || endTime <= startTime) {
       return false;
     }
 
-    if (currentTime >= this.endTime) {
-      if (this.loopCallback) {
-        this.loopCallback(this.startTime);
+    if (currentTime >= endTime) {
+      if (loopCallback) {
+        loopCallback(startTime);
       }
       return true;
     }
@@ -253,42 +282,143 @@ export class ABLoopManager {
     return false;
   }
 
-  onLoop(callback: (time: number) => void) {
-    this.loopCallback = callback;
+  function onLoop(callback: (time: number) => void) {
+    loopCallback = callback;
   }
 
-  getLoopRange(): { start: number; end: number } {
-    return { start: this.startTime, end: this.endTime };
+  function getLoopRange(): { start: number; end: number } {
+    return { start: startTime, end: endTime };
   }
 
-  isActive(): boolean {
-    return this.isLooping;
+  function isActive(): boolean {
+    return isLooping;
   }
+
+  return {
+    setLoop,
+    clearLoop,
+    checkLoop,
+    onLoop,
+    getLoopRange,
+    isActive,
+  };
 }
 
+// Utility functions
 export function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 100);
-  
+
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
 }
 
 export function parseTime(timeString: string): number {
   const parts = timeString.split(':');
-  
+
   if (parts.length === 2) {
     const minutes = parseInt(parts[0], 10);
     const seconds = parseFloat(parts[1]);
     return minutes * 60 + seconds;
   }
-  
+
   if (parts.length === 3) {
     const hours = parseInt(parts[0], 10);
     const minutes = parseInt(parts[1], 10);
     const seconds = parseFloat(parts[2]);
     return hours * 3600 + minutes * 60 + seconds;
   }
-  
+
   return parseFloat(timeString);
+}
+
+// 向后兼容的类定义
+export class SubtitleSynchronizer {
+  private instance: SubtitleSynchronizerInstance;
+
+  constructor(segments: Segment[], options: SubtitleSyncOptions = {}) {
+    this.instance = createSubtitleSynchronizer(segments, options);
+  }
+
+  updateTime(currentTime: number) {
+    this.instance.updateTime(currentTime);
+  }
+
+  getCurrentState(): SubtitleState {
+    return this.instance.getCurrentState();
+  }
+
+  seekToSubtitle(subtitleId: number): number | null {
+    return this.instance.seekToSubtitle(subtitleId);
+  }
+
+  findSubtitleAtTime(time: number): Subtitle | null {
+    return this.instance.findSubtitleAtTime(time);
+  }
+
+  findNearestSubtitle(time: number): Subtitle | null {
+    return this.instance.findNearestSubtitle(time);
+  }
+
+  getSubtitleTextAtTime(time: number): string {
+    return this.instance.getSubtitleTextAtTime(time);
+  }
+
+  getSubtitlesInRange(startTime: number, endTime: number): Subtitle[] {
+    return this.instance.getSubtitlesInRange(startTime, endTime);
+  }
+
+  getDuration(): number {
+    return this.instance.getDuration();
+  }
+
+  getSubtitleCount(): number {
+    return this.instance.getSubtitleCount();
+  }
+
+  onUpdate(callback: (state: SubtitleState) => void) {
+    this.instance.onUpdate(callback);
+  }
+
+  destroy() {
+    this.instance.destroy();
+  }
+}
+
+// biome-ignore lint/complexity/noStaticOnlyClass: Backward compatibility for existing code
+export class SubtitleRenderer {
+  static renderSubtitle = renderSubtitle;
+  static createSubtitleElement = createSubtitleElement;
+}
+
+export class AbLoopManager {
+  private instance: AbLoopManagerInstance;
+
+  constructor() {
+    this.instance = createAbLoopManager();
+  }
+
+  setLoop(startTime: number, endTime: number) {
+    this.instance.setLoop(startTime, endTime);
+  }
+
+  clearLoop() {
+    this.instance.clearLoop();
+  }
+
+  checkLoop(currentTime: number): boolean {
+    return this.instance.checkLoop(currentTime);
+  }
+
+  onLoop(callback: (time: number) => void) {
+    this.instance.onLoop(callback);
+  }
+
+  getLoopRange(): { start: number; end: number } {
+    return this.instance.getLoopRange();
+  }
+
+  isActive(): boolean {
+    return this.instance.isActive();
+  }
 }
