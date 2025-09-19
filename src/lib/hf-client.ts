@@ -114,8 +114,10 @@ export class HFClient {
     const errors: Array<{ chunkIndex: number; error: Error }> = [];
 
     // Process chunks sequentially to avoid rate limiting
+    console.log("🔄 Starting sequential chunk processing...");
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
+      console.log(`🎵 Processing chunk ${i + 1}/${chunks.length}...`);
 
       try {
         options.onProgress?.({
@@ -125,7 +127,9 @@ export class HFClient {
           progress: (i / chunks.length) * 100,
         });
 
+        console.log(`📤 Transcribing chunk ${i}...`);
         const result = await this.transcribeChunk(chunk, options);
+        console.log(`✅ Chunk ${i} transcription completed`);
         results.push({ ...result, chunkIndex: i });
 
         options.onProgress?.({
@@ -137,6 +141,7 @@ export class HFClient {
 
         // Add delay between requests to avoid rate limiting
         if (i < chunks.length - 1) {
+          console.log(`⏳ Waiting 1 second before next chunk...`);
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       } catch (error) {
@@ -155,6 +160,8 @@ export class HFClient {
         });
       }
     }
+
+    console.log("🎉 All chunks processed, checking for errors...");
 
     if (errors.length > 0) {
       const errorMessage = errors

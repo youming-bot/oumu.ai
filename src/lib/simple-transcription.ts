@@ -69,10 +69,15 @@ export class SimpleTranscriptionService {
       "🔄 Starting transcription with providers:",
       availableProviders,
     );
+    console.log("📊 Total chunks to process:", chunks.length);
 
     for (const provider of availableProviders) {
       try {
         console.log(`🎤 Trying provider: ${provider}`);
+        console.log(`📦 Provider options:`, {
+          language: options.language,
+          providers: options.providers,
+        });
 
         const result = await this.transcribeWithProvider(chunks, {
           ...options,
@@ -80,6 +85,11 @@ export class SimpleTranscriptionService {
         });
 
         console.log(`✅ Transcription successful with provider: ${provider}`);
+        console.log(`📊 Result details:`, {
+          resultCount: result.length,
+          provider,
+        });
+
         return {
           results: result,
           provider,
