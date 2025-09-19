@@ -252,38 +252,28 @@ async function extractAudioSegment(
 
   console.log("🎬 Starting offline rendering...");
   try {
-    await offlineContext.startRendering();
+    const renderedBuffer = await offlineContext.startRendering();
     console.log("✅ Offline rendering completed");
+    console.log("📊 Rendered buffer info:", {
+      duration: renderedBuffer.duration,
+      sampleRate: renderedBuffer.sampleRate,
+      numberOfChannels: renderedBuffer.numberOfChannels,
+      length: renderedBuffer.length,
+    });
+
+    console.log("🔄 Interleaving audio channels...");
+    const interleaved = interleave(renderedBuffer);
+    console.log("✅ Audio interleaved, length:", interleaved.length);
+
+    console.log("📦 Encoding to WAV format...");
+    const wavBlob = encodeWav(interleaved, renderedBuffer.sampleRate);
+    console.log("✅ WAV encoding completed, blob size:", wavBlob.size);
+
+    return wavBlob;
   } catch (renderError) {
     console.error("❌ Error during offline rendering:", renderError);
     throw renderError;
   }
-
-  return new Promise((resolve, reject) => {
-    offlineContext.oncomplete = (event) => {
-      console.log("🎯 Offline rendering complete, processing buffer...");
-      const buffer = event.renderedBuffer;
-      console.log("📊 Rendered buffer info:", {
-        duration: buffer.duration,
-        sampleRate: buffer.sampleRate,
-        numberOfChannels: buffer.numberOfChannels,
-        length: buffer.length,
-      });
-
-      console.log("🔄 Interleaving audio channels...");
-      const interleaved = interleave(buffer);
-      console.log("✅ Audio interleaved, length:", interleaved.length);
-
-      console.log("📦 Encoding to WAV format...");
-      const wavBlob = encodeWav(interleaved, buffer.sampleRate);
-      console.log("✅ WAV encoding completed, blob size:", wavBlob.size);
-
-      resolve(wavBlob);
-    };
-
-    // Note: OfflineAudioContext doesn't have onerror event in some browsers
-    // We'll rely on the try-catch around startRendering for error handling
-  });
 }
 
 /**
