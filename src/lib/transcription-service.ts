@@ -172,6 +172,11 @@ export async function transcribeAudio(
     }
 
     console.log("🎉 Transcription completed successfully");
+    console.log("📊 Final result summary:", {
+      textLength: result.data?.text?.length,
+      segmentCount: result.data?.segments?.length,
+      duration: result.data?.duration,
+    });
     return result.data;
   } catch (error) {
     console.error("❌ Error in transcribeAudio:", error);

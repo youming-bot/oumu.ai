@@ -1,9 +1,9 @@
-import type { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { apiError, apiFromError, apiSuccess } from '@/lib/api-response';
-import { handleError, validationError } from '@/lib/error-handler';
-import { mergeTranscriptionResults, transcribeChunks } from '@/lib/groq-client';
-import { WordTimestampService } from '@/lib/word-timestamp-service';
+import type { NextRequest } from "next/server";
+import { z } from "zod";
+import { apiError, apiFromError, apiSuccess } from "@/lib/api-response";
+import { handleError, validationError } from "@/lib/error-handler";
+import { mergeTranscriptionResults, transcribeChunks } from "@/lib/groq-client";
+import { WordTimestampService } from "@/lib/word-timestamp-service";
 
 const transcribeSchema = z.object({
   fileData: z.object({
@@ -13,7 +13,7 @@ const transcribeSchema = z.object({
     type: z.string(),
     duration: z.number(), // Duration calculated on client
   }),
-  language: z.string().optional().default('ja'),
+  language: z.string().optional().default("ja"),
   chunkSeconds: z.number().int().positive().optional().default(45),
   overlap: z.number().positive().optional().default(0.2),
   chunks: z.array(
@@ -23,15 +23,15 @@ const transcribeSchema = z.object({
       endTime: z.number(),
       duration: z.number(),
       index: z.number(),
-    })
+    }),
   ),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔥 Transcribe API called');
+    console.log("🔥 Transcribe API called");
     const body = await request.json();
-    console.log('📦 Request data:', {
+    console.log("📦 Request data:", {
       fileName: body.fileData?.name,
       fileSize: body.fileData?.size,
       language: body.language,
@@ -41,20 +41,23 @@ export async function POST(request: NextRequest) {
     const validation = transcribeSchema.safeParse(body);
 
     if (!validation.success) {
-      const error = validationError('Invalid request data', validation.error.format());
+      const error = validationError(
+        "Invalid request data",
+        validation.error.format(),
+      );
       return apiError(error);
     }
 
     const { fileData, language, chunks } = validation.data;
 
     try {
-      console.log('🎵 Processing', chunks.length, 'audio chunks...');
+      console.log("🎵 Processing", chunks.length, "audio chunks...");
 
       // Convert chunk data back to Blobs for processing
       const processableChunks = chunks.map((chunk, index) => {
         const arrayBuffer = new Uint8Array(chunk.arrayBuffer.data).buffer;
         return {
-          blob: new Blob([arrayBuffer], { type: 'audio/wav' }),
+          blob: new Blob([arrayBuffer], { type: "audio/wav" }),
           startTime: chunk.startTime,
           endTime: chunk.endTime,
           duration: chunk.duration,
@@ -62,12 +65,22 @@ export async function POST(request: NextRequest) {
         };
       });
 
+      console.log(
+        "🔄 About to call transcribeChunks with",
+        processableChunks.length,
+        "chunks",
+      );
       const results = await transcribeChunks(processableChunks, {
         language,
         onProgress: async (progress) => {
-          console.log('📊 Transcription progress:', progress);
+          console.log("📊 Transcription progress:", progress);
         },
       });
+      console.log(
+        "✅ transcribeChunks completed with",
+        results.length,
+        "results",
+      );
 
       const mergedResult = mergeTranscriptionResults(results);
 
@@ -75,7 +88,7 @@ export async function POST(request: NextRequest) {
         const wordTimestamps = WordTimestampService.generateWordTimestamps(
           segment.text,
           segment.start,
-          segment.end
+          segment.end,
         );
 
         return {
@@ -94,11 +107,11 @@ export async function POST(request: NextRequest) {
         processingTime: 0,
       });
     } catch (error) {
-      const appError = handleError(error, 'transcribe/POST-inner');
+      const appError = handleError(error, "transcribe/POST-inner");
       return apiError(appError);
     }
   } catch (error) {
-    return apiFromError(error, 'transcribe/POST');
+    return apiFromError(error, "transcribe/POST");
   }
 }
 

@@ -1,11 +1,11 @@
-import type { AudioChunk } from './audio-processor';
+import type { AudioChunk } from "./audio-processor";
 
 export interface GroqTranscriptionRequest {
   file: Blob;
-  model: 'whisper-large-v3';
+  model: "whisper-large-v3";
   language?: string;
   prompt?: string;
-  responseFormat?: 'json' | 'text' | 'srt' | 'vtt' | 'verbose_json';
+  responseFormat?: "json" | "text" | "srt" | "vtt" | "verbose_json";
   temperature?: number;
 }
 
@@ -43,44 +43,46 @@ export interface GroqErrorResponse {
 export interface TranscriptionProgress {
   chunkIndex: number;
   totalChunks: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: "pending" | "processing" | "completed" | "failed";
   progress: number;
   error?: string;
 }
 
-export type TranscriptionProgressCallback = (progress: TranscriptionProgress) => void;
+export type TranscriptionProgressCallback = (
+  progress: TranscriptionProgress,
+) => void;
 
 export class GroqClientError extends Error {
   constructor(
     message: string,
     public readonly code?: number,
-    public readonly type?: string
+    public readonly type?: string,
   ) {
     super(message);
-    this.name = 'GroqClientError';
+    this.name = "GroqClientError";
   }
 }
 
 export class GroqRateLimitError extends GroqClientError {
   constructor(
     message: string,
-    public readonly retryAfter?: number
+    public readonly retryAfter?: number,
   ) {
-    super(message, 429, 'rate_limit_exceeded');
-    this.name = 'GroqRateLimitError';
+    super(message, 429, "rate_limit_exceeded");
+    this.name = "GroqRateLimitError";
   }
 }
 
 // 模块级别的私有状态
-const BASE_URL = 'https://api.groq.com/openai/v1';
-const DEFAULT_MODEL = 'whisper-large-v3';
+const BASE_URL = "https://api.groq.com/openai/v1";
+const DEFAULT_MODEL = "whisper-large-v3";
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 30000; // 30 seconds
 const RATE_LIMIT_WINDOW = 60000; // 1 minute
 
 let activeRequests = 0;
-const maxConcurrency = parseInt(process.env.MAX_CONCURRENCY || '3', 10);
+const maxConcurrency = parseInt(process.env.MAX_CONCURRENCY || "3", 10);
 const rateLimitQueue: Array<() => Promise<void>> = [];
 let lastRequestTime = 0;
 
@@ -89,21 +91,21 @@ let lastRequestTime = 0;
  */
 function buildFormData(
   chunk: AudioChunk,
-  options: { language?: string; prompt?: string }
+  options: { language?: string; prompt?: string },
 ): FormData {
   const formData = new FormData();
-  formData.append('file', chunk.blob, `chunk_${chunk.index}.wav`);
-  formData.append('model', DEFAULT_MODEL);
+  formData.append("file", chunk.blob, `chunk_${chunk.index}.wav`);
+  formData.append("model", DEFAULT_MODEL);
 
   if (options.language) {
-    formData.append('language', options.language);
+    formData.append("language", options.language);
   }
 
   if (options.prompt) {
-    formData.append('prompt', options.prompt);
+    formData.append("prompt", options.prompt);
   }
 
-  formData.append('response_format', 'verbose_json');
+  formData.append("response_format", "verbose_json");
   return formData;
 }
 
@@ -111,24 +113,33 @@ function buildFormData(
  * 处理API响应错误
  */
 async function handleResponseError(response: Response): Promise<never> {
-  const errorData = (await response.json().catch(() => ({}))) as GroqErrorResponse;
+  const errorData = (await response
+    .json()
+    .catch(() => ({}))) as GroqErrorResponse;
 
   if (response.status === 429) {
-    const retryAfter = parseRetryAfter(response.headers.get('Retry-After'));
-    throw new GroqRateLimitError(errorData.error?.message || 'Rate limit exceeded', retryAfter);
+    const retryAfter = parseRetryAfter(response.headers.get("Retry-After"));
+    throw new GroqRateLimitError(
+      errorData.error?.message || "Rate limit exceeded",
+      retryAfter,
+    );
   }
 
   throw new GroqClientError(
-    errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`,
+    errorData.error?.message ||
+      `HTTP ${response.status}: ${response.statusText}`,
     errorData.error?.code || response.status,
-    errorData.error?.type
+    errorData.error?.type,
   );
 }
 
 /**
  * 调整片段时间基于块开始时间
  */
-function adjustSegmentTiming(segments: GroqSegment[], chunkStartTime: number): GroqSegment[] {
+function adjustSegmentTiming(
+  segments: GroqSegment[],
+  chunkStartTime: number,
+): GroqSegment[] {
   return segments.map((segment) => ({
     ...segment,
     start: segment.start + chunkStartTime,
@@ -142,7 +153,7 @@ function adjustSegmentTiming(segments: GroqSegment[], chunkStartTime: number): G
 async function handleTranscriptionError(
   error: unknown,
   chunk: AudioChunk,
-  options: { language?: string; prompt?: string; retryCount?: number }
+  options: { language?: string; prompt?: string; retryCount?: number },
 ): Promise<GroqTranscriptionResponse> {
   if (error instanceof GroqRateLimitError) {
     return handleRateLimitError(error, chunk, options);
@@ -170,16 +181,19 @@ export async function transcribeChunk(
     language?: string;
     prompt?: string;
     retryCount?: number;
-  } = {}
+  } = {},
 ): Promise<GroqTranscriptionResponse> {
+  console.log(`🎤 transcribeChunk called for chunk ${chunk.index}`);
   const apiKey = process.env.GROQ_API_KEY;
-  console.log(`🔑 GROQ_API_KEY: ${apiKey ? '已设置' : '未设置'}`);
+  console.log(`🔑 GROQ_API_KEY: ${apiKey ? "已设置" : "未设置"}`);
   if (!apiKey) {
-    throw new GroqClientError('GROQ_API_KEY environment variable is not set');
+    throw new GroqClientError("GROQ_API_KEY environment variable is not set");
   }
 
+  console.log(`⏳ Waiting for rate limit and concurrency slots...`);
   await waitForRateLimit();
   await waitForConcurrencySlot();
+  console.log(`✅ Rate limit and concurrency slots acquired`);
 
   try {
     activeRequests++;
@@ -195,15 +209,18 @@ export async function transcribeChunk(
       blobSize: chunk.blob.size,
     });
 
+    console.log(`🌐 Calling Groq API at: ${BASE_URL}/audio/transcriptions`);
     const response = await fetch(`${BASE_URL}/audio/transcriptions`, {
-      method: 'POST',
+      method: "POST",
       headers: {
         authorization: `Bearer ${apiKey}`,
       },
       body: formData,
     });
 
-    console.log(`📡 API Response status: ${response.status} ${response.statusText}`);
+    console.log(
+      `📡 API Response status: ${response.status} ${response.statusText}`,
+    );
 
     if (!response.ok) {
       console.log(`❌ API request failed with status ${response.status}`);
@@ -240,34 +257,44 @@ export async function transcribeChunks(
     language?: string;
     prompt?: string;
     onProgress?: TranscriptionProgressCallback;
-  } = {}
+  } = {},
 ): Promise<Array<GroqTranscriptionResponse & { chunkIndex: number }>> {
+  console.log(`🎵 transcribeChunks called with ${chunks.length} chunks`);
+  console.log(`🔧 Options:`, options);
+  console.log(
+    `📊 Current active requests: ${activeRequests}, max concurrency: ${maxConcurrency}`,
+  );
+
   const results: Array<GroqTranscriptionResponse & { chunkIndex: number }> = [];
   const errors: Array<{ chunkIndex: number; error: Error }> = [];
 
   const processChunk = async (chunk: AudioChunk, index: number) => {
+    console.log(`🔄 Processing chunk ${index} of ${chunks.length}`);
     try {
       options.onProgress?.({
         chunkIndex: index,
         totalChunks: chunks.length,
-        status: 'processing',
+        status: "processing",
         progress: (index / chunks.length) * 100,
       });
 
+      console.log(`📤 Calling transcribeChunk for chunk ${index}...`);
       const result = await transcribeChunk(chunk, {
         language: options.language,
         prompt: options.prompt,
       });
+      console.log(`✅ Chunk ${index} transcribed successfully`);
 
       results.push({ ...result, chunkIndex: index });
 
       options.onProgress?.({
         chunkIndex: index,
         totalChunks: chunks.length,
-        status: 'completed',
+        status: "completed",
         progress: ((index + 1) / chunks.length) * 100,
       });
     } catch (error) {
+      console.error(`❌ Chunk ${index} failed:`, error);
       errors.push({
         chunkIndex: index,
         error: error instanceof Error ? error : new Error(String(error)),
@@ -276,7 +303,7 @@ export async function transcribeChunks(
       options.onProgress?.({
         chunkIndex: index,
         totalChunks: chunks.length,
-        status: 'failed',
+        status: "failed",
         progress: (index / chunks.length) * 100,
         error: error instanceof Error ? error.message : String(error),
       });
@@ -303,8 +330,12 @@ export async function transcribeChunks(
   await Promise.all(chunkPromises);
 
   if (errors.length > 0) {
-    const errorMessage = errors.map((e) => `Chunk ${e.chunkIndex}: ${e.error.message}`).join('; ');
-    throw new GroqClientError(`Failed to transcribe ${errors.length} chunks: ${errorMessage}`);
+    const errorMessage = errors
+      .map((e) => `Chunk ${e.chunkIndex}: ${e.error.message}`)
+      .join("; ");
+    throw new GroqClientError(
+      `Failed to transcribe ${errors.length} chunks: ${errorMessage}`,
+    );
   }
 
   return results.sort((a, b) => a.chunkIndex - b.chunkIndex);
@@ -314,16 +345,16 @@ export async function transcribeChunks(
  * 合并多个块的转录结果为单个响应
  */
 export function mergeTranscriptionResults(
-  results: Array<GroqTranscriptionResponse & { chunkIndex: number }>
+  results: Array<GroqTranscriptionResponse & { chunkIndex: number }>,
 ): GroqTranscriptionResponse {
   if (results.length === 0) {
-    return { text: '', segments: [] };
+    return { text: "", segments: [] };
   }
 
   const mergedText = results
     .map((result) => result.text.trim())
     .filter((text) => text.length > 0)
-    .join(' ');
+    .join(" ");
 
   const mergedSegments = results
     .flatMap((result) => result.segments || [])
@@ -332,7 +363,10 @@ export function mergeTranscriptionResults(
   return {
     text: mergedText,
     language: results[0]?.language,
-    duration: mergedSegments.length > 0 ? Math.max(...mergedSegments.map((s) => s.end)) : undefined,
+    duration:
+      mergedSegments.length > 0
+        ? Math.max(...mergedSegments.map((s) => s.end))
+        : undefined,
     segments: mergedSegments.length > 0 ? mergedSegments : undefined,
   };
 }
@@ -347,34 +381,34 @@ export function getSupportedFormats(): Array<{
 }> {
   return [
     {
-      extension: '.wav',
-      mimeType: 'audio/wav',
-      description: 'WAV audio format',
+      extension: ".wav",
+      mimeType: "audio/wav",
+      description: "WAV audio format",
     },
     {
-      extension: '.mp3',
-      mimeType: 'audio/mpeg',
-      description: 'MP3 audio format',
+      extension: ".mp3",
+      mimeType: "audio/mpeg",
+      description: "MP3 audio format",
     },
     {
-      extension: '.m4a',
-      mimeType: 'audio/mp4',
-      description: 'MP4 audio format',
+      extension: ".m4a",
+      mimeType: "audio/mp4",
+      description: "MP4 audio format",
     },
     {
-      extension: '.webm',
-      mimeType: 'audio/webm',
-      description: 'WebM audio format',
+      extension: ".webm",
+      mimeType: "audio/webm",
+      description: "WebM audio format",
     },
     {
-      extension: '.ogg',
-      mimeType: 'audio/ogg',
-      description: 'Ogg Vorbis format',
+      extension: ".ogg",
+      mimeType: "audio/ogg",
+      description: "Ogg Vorbis format",
     },
     {
-      extension: '.flac',
-      mimeType: 'audio/flac',
-      description: 'FLAC audio format',
+      extension: ".flac",
+      mimeType: "audio/flac",
+      description: "FLAC audio format",
     },
   ];
 }
@@ -401,7 +435,7 @@ export async function ensureSupportedFormat(blob: Blob): Promise<Blob> {
     `Unsupported audio format: ${blob.type}. ` +
       `Supported formats: ${getSupportedFormats()
         .map((f) => f.mimeType)
-        .join(', ')}`
+        .join(", ")}`,
   );
 }
 
@@ -437,7 +471,7 @@ async function waitForConcurrencySlot(): Promise<void> {
 async function handleRateLimitError(
   error: GroqRateLimitError,
   chunk: AudioChunk,
-  options: { retryCount?: number; language?: string; prompt?: string }
+  options: { retryCount?: number; language?: string; prompt?: string },
 ): Promise<GroqTranscriptionResponse> {
   const retryCount = options.retryCount || 0;
 
@@ -462,8 +496,8 @@ function isRetryableError(error: unknown): boolean {
   const retryableCodes = [429, 500, 502, 503, 504];
   return (
     retryableCodes.includes(error.code || 0) ||
-    error.message.includes('network') ||
-    error.message.includes('timeout')
+    error.message.includes("network") ||
+    error.message.includes("timeout")
   );
 }
 
