@@ -1,13 +1,17 @@
-import type { Term } from '@/types/database';
-import { getAudioDuration, processAudioFile } from './audio-processor';
-import { DbUtils } from './db';
-import { handleError, handleSilently, notFoundError } from './error-handler';
+import type { Term } from "@/types/database";
+import { getAudioDuration, processAudioFile } from "./audio-processor";
+import { DbUtils } from "./db";
+import { handleError, handleSilently, notFoundError } from "./error-handler";
 
 export interface TranscriptionOptions {
   language?: string;
   chunkSeconds?: number;
   overlap?: number;
-  onProgress?: (progress: { progress: number; currentChunk: number; totalChunks: number }) => void;
+  onProgress?: (progress: {
+    progress: number;
+    currentChunk: number;
+    totalChunks: number;
+  }) => void;
 }
 
 export interface TranscriptionResult {
@@ -57,35 +61,35 @@ export interface PostProcessResult {
  */
 export async function transcribeAudio(
   fileId: number,
-  options: TranscriptionOptions = {}
+  options: TranscriptionOptions = {},
 ): Promise<TranscriptionResult> {
   console.log(
-    '🎵 TranscriptionService.transcribeAudio called with fileId:',
+    "🎵 TranscriptionService.transcribeAudio called with fileId:",
     fileId,
-    'options:',
-    options
+    "options:",
+    options,
   );
 
   try {
     // 从客户端数据库获取文件数据
     const file = await DbUtils.getFile(fileId);
     if (!file) {
-      console.error('❌ File not found in database for fileId:', fileId);
-      throw notFoundError('文件未找到', { fileId });
+      console.error("❌ File not found in database for fileId:", fileId);
+      throw notFoundError("文件未找到", { fileId });
     }
-    console.log('✅ File found in database:', file.name, 'size:', file.size);
+    console.log("✅ File found in database:", file.name, "size:", file.size);
 
     // 在客户端处理音频切片
-    console.log('🔄 Processing audio file into chunks...');
+    console.log("🔄 Processing audio file into chunks...");
     const chunks = await processAudioFile(
       file.blob,
       options.chunkSeconds || 45,
-      options.overlap || 0.2
+      options.overlap || 0.2,
     );
-    console.log('✅ Audio processed into', chunks.length, 'chunks');
+    console.log("✅ Audio processed into", chunks.length, "chunks");
 
     // 将音频块转换为可序列化的格式
-    console.log('🔄 Converting chunks to serializable format...');
+    console.log("🔄 Converting chunks to serializable format...");
     const serializableChunks = await Promise.all(
       chunks.map(async (chunk) => ({
         arrayBuffer: {
@@ -95,14 +99,24 @@ export async function transcribeAudio(
         endTime: chunk.endTime,
         duration: chunk.duration,
         index: chunk.index,
-      }))
+      })),
     );
-    console.log('✅ Chunks converted to serializable format');
+    console.log("✅ Chunks converted to serializable format");
+
+    // 清理音频块 blob 以释放内存
+    console.log("🧹 Cleaning up audio chunk blobs...");
+    chunks.forEach((chunk) => {
+      if ("blob" in chunk && chunk.blob instanceof Blob) {
+        // 清理 blob 内存
+        URL.revokeObjectURL(URL.createObjectURL(chunk.blob));
+      }
+    });
+    console.log("✅ Audio chunk blobs cleaned up");
 
     // 准备文件数据
     const fileArrayBuffer = await file.blob.arrayBuffer();
     const duration = await getAudioDuration(file.blob);
-    console.log('📊 File duration:', duration, 'seconds');
+    console.log("📊 File duration:", duration, "seconds");
 
     // 调用 API 进行转录
     const requestData = {
@@ -115,49 +129,53 @@ export async function transcribeAudio(
         type: file.type,
         duration: duration,
       },
-      language: options.language || 'ja',
+      language: options.language || "ja",
       chunkSeconds: options.chunkSeconds || 45,
       overlap: options.overlap || 0.2,
       chunks: serializableChunks,
     };
 
-    console.log('📡 Calling /api/transcribe API...');
-    console.log('📦 Request data summary:', {
+    console.log("📡 Calling /api/transcribe API...");
+    console.log("📦 Request data summary:", {
       fileName: requestData.fileData.name,
       fileSize: requestData.fileData.size,
       language: requestData.language,
       chunkCount: requestData.chunks.length,
     });
 
-    const response = await fetch('/api/transcribe', {
-      method: 'POST',
+    const response = await fetch("/api/transcribe", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(requestData),
     });
 
-    console.log('📡 API Response status:', response.status, response.statusText);
+    console.log(
+      "📡 API Response status:",
+      response.status,
+      response.statusText,
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('❌ API Error response:', errorData);
+      console.error("❌ API Error response:", errorData);
       throw new Error(`转录失败: ${errorData.error || response.statusText}`);
     }
 
     const result = await response.json();
-    console.log('✅ API Response received:', result);
+    console.log("✅ API Response received:", result);
 
     if (!result.success) {
-      console.error('❌ API returned unsuccessful result:', result);
-      throw new Error(`转录失败: ${result.error || '未知错误'}`);
+      console.error("❌ API returned unsuccessful result:", result);
+      throw new Error(`转录失败: ${result.error || "未知错误"}`);
     }
 
-    console.log('🎉 Transcription completed successfully');
+    console.log("🎉 Transcription completed successfully");
     return result.data;
   } catch (error) {
-    console.error('❌ Error in transcribeAudio:', error);
-    throw handleError(error, 'transcribeAudio');
+    console.error("❌ Error in transcribeAudio:", error);
+    throw handleError(error, "transcribeAudio");
   }
 }
 
@@ -175,8 +193,8 @@ export async function postProcessSegments(
       end: number;
     }>;
   }>,
-  language: string = 'ja',
-  options: PostProcessOptions = {}
+  language: string = "ja",
+  options: PostProcessOptions = {},
 ): Promise<PostProcessResult> {
   try {
     // 获取术语库（如果启用）
@@ -186,7 +204,7 @@ export async function postProcessSegments(
         terminology = await DbUtils.getAllTerms();
       } catch (error) {
         // 术语获取失败不影响主要处理流程，继续使用空术语列表
-        handleSilently(error, 'terminology-fetch');
+        handleSilently(error, "terminology-fetch");
       }
     }
 
@@ -194,17 +212,17 @@ export async function postProcessSegments(
     const requestData = {
       segments,
       language,
-      targetLanguage: options.targetLanguage || 'en',
+      targetLanguage: options.targetLanguage || "en",
       enableAnnotations: options.enableAnnotations !== false,
       enableFurigana: options.enableFurigana !== false,
       enableTerminology: options.enableTerminology !== false,
       terminology,
     };
 
-    const response = await fetch('/api/postprocess', {
-      method: 'POST',
+    const response = await fetch("/api/postprocess", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(requestData),
     });
@@ -217,12 +235,12 @@ export async function postProcessSegments(
     const result = await response.json();
 
     if (!result.success) {
-      throw new Error(`后处理失败: ${result.error || '未知错误'}`);
+      throw new Error(`后处理失败: ${result.error || "未知错误"}`);
     }
 
     return result.data;
   } catch (error) {
-    throw handleError(error, 'postProcessSegments');
+    throw handleError(error, "postProcessSegments");
   }
 }
 
@@ -231,27 +249,31 @@ export async function postProcessSegments(
  */
 export async function postProcessSegmentsByTranscriptId(
   transcriptId: number,
-  options: PostProcessOptions = {}
+  options: PostProcessOptions = {},
 ): Promise<PostProcessResult> {
   try {
     // 获取转录记录
     const transcript = await DbUtils.getTranscript(transcriptId);
     if (!transcript) {
-      throw notFoundError('Transcript not found', { transcriptId });
+      throw notFoundError("Transcript not found", { transcriptId });
     }
 
     // 检查转录状态
-    if (transcript.status !== 'completed') {
-      throw new Error('Transcript must be completed before post-processing');
+    if (transcript.status !== "completed") {
+      throw new Error("Transcript must be completed before post-processing");
     }
 
     // 获取转录的段落数据
     const segments = await DbUtils.getSegmentsByTranscriptId(transcriptId);
 
     // 调用后处理方法
-    return await postProcessSegments(segments, transcript.language || 'ja', options);
+    return await postProcessSegments(
+      segments,
+      transcript.language || "ja",
+      options,
+    );
   } catch (error) {
-    throw handleError(error, 'postProcessSegmentsByTranscriptId');
+    throw handleError(error, "postProcessSegmentsByTranscriptId");
   }
 }
 
@@ -261,7 +283,7 @@ export async function postProcessSegmentsByTranscriptId(
 export async function transcribeAndPostProcess(
   fileId: number,
   transcriptionOptions: TranscriptionOptions = {},
-  postProcessOptions: PostProcessOptions = {}
+  postProcessOptions: PostProcessOptions = {},
 ): Promise<{
   transcription: TranscriptionResult;
   postProcessed: PostProcessResult;
@@ -273,8 +295,8 @@ export async function transcribeAndPostProcess(
     // 第二步：后处理
     const postProcessed = await postProcessSegments(
       transcription.segments,
-      transcriptionOptions.language || 'ja',
-      postProcessOptions
+      transcriptionOptions.language || "ja",
+      postProcessOptions,
     );
 
     return {
@@ -282,7 +304,7 @@ export async function transcribeAndPostProcess(
       postProcessed,
     };
   } catch (error) {
-    throw handleError(error, 'transcribeAndPostProcess');
+    throw handleError(error, "transcribeAndPostProcess");
   }
 }
 
@@ -294,12 +316,12 @@ export async function getTranscriptionProgress(fileId: number) {
     const transcripts = await DbUtils.getTranscriptsByFileId(fileId);
     return {
       hasTranscript: transcripts.length > 0,
-      isCompleted: transcripts.some((t) => t.status === 'completed'),
-      isProcessing: transcripts.some((t) => t.status === 'processing'),
+      isCompleted: transcripts.some((t) => t.status === "completed"),
+      isProcessing: transcripts.some((t) => t.status === "processing"),
       transcripts,
     };
   } catch (error) {
-    throw handleError(error, 'getTranscriptionProgress');
+    throw handleError(error, "getTranscriptionProgress");
   }
 }
 
@@ -310,7 +332,7 @@ export async function getFileTranscripts(fileId: number) {
   try {
     return await DbUtils.getTranscriptsByFileId(fileId);
   } catch (error) {
-    throw handleError(error, 'getFileTranscripts');
+    throw handleError(error, "getFileTranscripts");
   }
 }
 
@@ -320,20 +342,22 @@ export async function getFileTranscripts(fileId: number) {
 export async function saveTranscriptionResult(
   fileId: number,
   transcriptionResult: TranscriptionResult,
-  postProcessResult?: PostProcessResult
+  postProcessResult?: PostProcessResult,
 ): Promise<number> {
   try {
     // 创建转录记录
     const transcriptId = await DbUtils.addTranscript({
       fileId,
-      status: 'completed',
-      language: 'ja', // 从options中获取
+      status: "completed",
+      language: "ja", // 从options中获取
       rawText: transcriptionResult.text,
       processingTime: transcriptionResult.processingTime,
     });
 
     // 保存段落数据
-    const segments = postProcessResult ? postProcessResult.segments : transcriptionResult.segments;
+    const segments = postProcessResult
+      ? postProcessResult.segments
+      : transcriptionResult.segments;
 
     const segmentData = segments.map((segment) => ({
       transcriptId,
@@ -341,19 +365,20 @@ export async function saveTranscriptionResult(
       end: segment.end,
       text: segment.text,
       normalizedText:
-        'normalizedText' in segment && typeof segment.normalizedText === 'string'
+        "normalizedText" in segment &&
+        typeof segment.normalizedText === "string"
           ? segment.normalizedText
           : undefined,
       translation:
-        'translation' in segment && typeof segment.translation === 'string'
+        "translation" in segment && typeof segment.translation === "string"
           ? segment.translation
           : undefined,
       annotations:
-        'annotations' in segment && Array.isArray(segment.annotations)
+        "annotations" in segment && Array.isArray(segment.annotations)
           ? segment.annotations
           : undefined,
       furigana:
-        'furigana' in segment && typeof segment.furigana === 'string'
+        "furigana" in segment && typeof segment.furigana === "string"
           ? segment.furigana
           : undefined,
       wordTimestamps: segment.wordTimestamps || [],
@@ -363,7 +388,7 @@ export async function saveTranscriptionResult(
 
     return transcriptId;
   } catch (error) {
-    throw handleError(error, 'saveTranscriptionResult');
+    throw handleError(error, "saveTranscriptionResult");
   }
 }
 
@@ -374,7 +399,7 @@ export async function saveTranscriptionResult(
 export class TranscriptionService {
   static async transcribeAudio(
     fileId: number,
-    options: TranscriptionOptions = {}
+    options: TranscriptionOptions = {},
   ): Promise<TranscriptionResult> {
     return transcribeAudio(fileId, options);
   }
@@ -390,15 +415,15 @@ export class TranscriptionService {
         end: number;
       }>;
     }>,
-    language: string = 'ja',
-    options: PostProcessOptions = {}
+    language: string = "ja",
+    options: PostProcessOptions = {},
   ): Promise<PostProcessResult> {
     return postProcessSegments(segments, language, options);
   }
 
   static async postProcessSegmentsByTranscriptId(
     transcriptId: number,
-    options: PostProcessOptions = {}
+    options: PostProcessOptions = {},
   ): Promise<PostProcessResult> {
     return postProcessSegmentsByTranscriptId(transcriptId, options);
   }
@@ -406,12 +431,16 @@ export class TranscriptionService {
   static async transcribeAndPostProcess(
     fileId: number,
     transcriptionOptions: TranscriptionOptions = {},
-    postProcessOptions: PostProcessOptions = {}
+    postProcessOptions: PostProcessOptions = {},
   ): Promise<{
     transcription: TranscriptionResult;
     postProcessed: PostProcessResult;
   }> {
-    return transcribeAndPostProcess(fileId, transcriptionOptions, postProcessOptions);
+    return transcribeAndPostProcess(
+      fileId,
+      transcriptionOptions,
+      postProcessOptions,
+    );
   }
 
   static async getTranscriptionProgress(fileId: number) {
@@ -425,8 +454,12 @@ export class TranscriptionService {
   static async saveTranscriptionResult(
     fileId: number,
     transcriptionResult: TranscriptionResult,
-    postProcessResult?: PostProcessResult
+    postProcessResult?: PostProcessResult,
   ): Promise<number> {
-    return saveTranscriptionResult(fileId, transcriptionResult, postProcessResult);
+    return saveTranscriptionResult(
+      fileId,
+      transcriptionResult,
+      postProcessResult,
+    );
   }
 }
