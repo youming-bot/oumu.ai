@@ -2,7 +2,7 @@ import type { AudioChunk } from "./audio-processor";
 
 export interface GroqTranscriptionRequest {
   file: Blob;
-  model: "whisper-large-v3" | "whisper-large-v3-turbo";
+  model: "whisper-large-v3-turbo";
   language?: string;
   prompt?: string;
   responseFormat?: "json" | "text" | "srt" | "vtt" | "verbose_json";

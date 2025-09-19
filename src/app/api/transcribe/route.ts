@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiFromError, apiSuccess } from "@/lib/api-response";
 import { handleError, validationError } from "@/lib/error-handler";
-import { mergeTranscriptionResults, transcribeChunks } from "@/lib/groq-client";
+import { transcribeWithFallback } from "@/lib/transcription-providers";
 import { WordTimestampService } from "@/lib/word-timestamp-service";
 
 const transcribeSchema = z.object({
@@ -93,23 +93,32 @@ export async function POST(request: NextRequest) {
         );
       });
 
-      const results = (await Promise.race([
-        transcribeChunks(processableChunks, {
+      const { results, provider } = (await Promise.race([
+        transcribeWithFallback(processableChunks, {
           language,
+          providers: ["huggingface", "groq"], // Try HuggingFace first, then Groq
           onProgress: async (progress) => {
             console.log("📊 Transcription progress:", progress);
           },
         }),
         timeoutPromise,
       ])) as any;
+
       console.log(
-        "✅ transcribeChunks completed with",
+        `✅ Transcription completed with provider: ${provider}, results:`,
         results.length,
-        "results",
       );
 
       console.log("🔄 Merging transcription results...");
-      const mergedResult = mergeTranscriptionResults(results);
+      // Handle different provider result formats
+      let mergedResult;
+      if (provider === "huggingface") {
+        const { mergeHFTranscriptionResults } = await import("@/lib/hf-client");
+        mergedResult = mergeHFTranscriptionResults(results);
+      } else {
+        const { mergeTranscriptionResults } = await import("@/lib/groq-client");
+        mergedResult = mergeTranscriptionResults(results);
+      }
       console.log("✅ Results merged:", {
         textLength: mergedResult.text?.length,
         segmentCount: mergedResult.segments?.length,
