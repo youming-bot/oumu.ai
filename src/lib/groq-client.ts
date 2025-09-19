@@ -2,7 +2,7 @@ import type { AudioChunk } from "./audio-processor";
 
 export interface GroqTranscriptionRequest {
   file: Blob;
-  model: "whisper-large-v3";
+  model: "whisper-large-v3" | "whisper-large-v3-turbo";
   language?: string;
   prompt?: string;
   responseFormat?: "json" | "text" | "srt" | "vtt" | "verbose_json";
@@ -75,7 +75,7 @@ export class GroqRateLimitError extends GroqClientError {
 
 // 模块级别的私有状态
 const BASE_URL = "https://api.groq.com/openai/v1";
-const DEFAULT_MODEL = "whisper-large-v3";
+const DEFAULT_MODEL = "whisper-large-v3-turbo";
 const MAX_RETRIES = 3;
 const INITIAL_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 30000; // 30 seconds
