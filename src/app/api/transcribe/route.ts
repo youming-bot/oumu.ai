@@ -2,10 +2,7 @@ import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { apiError, apiFromError, apiSuccess } from "@/lib/api-response";
 import { handleError, validationError } from "@/lib/error-handler";
-import {
-  transcribeWithFallback,
-  mergeTranscriptionResultsByProvider,
-} from "@/lib/simple-transcription";
+import { transcribeWithHuggingFace } from "@/lib/huggingface-transcription";
 import { WordTimestampService } from "@/lib/word-timestamp-service";
 
 const transcribeSchema = z.object({
@@ -81,12 +78,8 @@ export async function POST(request: NextRequest) {
       });
       console.log("✅ All chunks converted to Blobs");
 
-      console.log(
-        "🔄 About to call transcribeChunks with",
-        processableChunks.length,
-        "chunks",
-      );
-      console.log("🔧 transcribeChunks options:", { language });
+      console.log("🔄 About to call transcribeWithHuggingFace...");
+      console.log("🔧 Transcription options:", { language });
 
       // Add timeout to prevent infinite waiting
       const timeoutPromise = new Promise((_, reject) => {
@@ -96,35 +89,25 @@ export async function POST(request: NextRequest) {
         );
       });
 
-      const { results, provider } = (await Promise.race([
-        transcribeWithFallback(processableChunks, {
+      const result = (await Promise.race([
+        transcribeWithHuggingFace(processableChunks, {
           language,
-          providers: ["huggingface", "groq"], // Try HuggingFace first, then Groq
           onProgress: async (progress) => {
             console.log("📊 Transcription progress:", progress);
           },
         }),
         timeoutPromise,
-      ])) as any;
+      ])) as any; // Type assertion for now
 
-      console.log(
-        `✅ Transcription completed with provider: ${provider}, results:`,
-        results.length,
-      );
-
-      console.log("🔄 Merging transcription results...");
-      const mergedResult = mergeTranscriptionResultsByProvider(
-        results,
-        provider,
-      );
-      console.log("✅ Results merged:", {
-        textLength: mergedResult.text?.length,
-        segmentCount: mergedResult.segments?.length,
-        duration: mergedResult.duration,
+      console.log("✅ HuggingFace transcription completed successfully");
+      console.log("📊 Result details:", {
+        textLength: result.text?.length,
+        segmentCount: result.segments?.length,
+        language: result.language,
       });
 
       console.log("🔄 Generating word timestamps...");
-      const segments = (mergedResult.segments || []).map((segment) => {
+      const segments = (result.segments || []).map((segment: any) => {
         const wordTimestamps = WordTimestampService.generateWordTimestamps(
           segment.text,
           segment.start,
@@ -146,7 +129,7 @@ export async function POST(request: NextRequest) {
 
       console.log("🎉 Preparing final API response...");
       const finalResponse = {
-        text: mergedResult.text,
+        text: result.text,
         duration: fileData.duration,
         segments: segments,
         segmentCount: segments.length,

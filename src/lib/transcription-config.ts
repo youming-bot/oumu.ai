@@ -1,14 +1,10 @@
 export interface TranscriptionConfig {
-  providers: string[];
-  defaultProvider: string;
   timeoutMs: number;
   retryCount: number;
   maxConcurrency: number;
 }
 
 export const defaultConfig: TranscriptionConfig = {
-  providers: ["huggingface", "groq"], // Try HuggingFace first, then Groq
-  defaultProvider: "huggingface",
   timeoutMs: 5 * 60 * 1000, // 5 minutes
   retryCount: 3,
   maxConcurrency: 2,
@@ -17,12 +13,6 @@ export const defaultConfig: TranscriptionConfig = {
 export function getTranscriptionConfig(): TranscriptionConfig {
   // Allow override via environment variables
   return {
-    providers:
-      process.env.TRANSCRIPTION_PROVIDERS?.split(",") ||
-      defaultConfig.providers,
-    defaultProvider:
-      process.env.DEFAULT_TRANSCRIPTION_PROVIDER ||
-      defaultConfig.defaultProvider,
     timeoutMs: parseInt(
       process.env.TRANSCRIPTION_TIMEOUT_MS ||
         defaultConfig.timeoutMs.toString(),
@@ -38,51 +28,28 @@ export function getTranscriptionConfig(): TranscriptionConfig {
   };
 }
 
-export function getProviderSettings(provider: string): {
+export function getHuggingFaceSettings(): {
   apiKey?: string;
-  baseUrl?: string;
-  model?: string;
-  supportsLanguage?: boolean;
-  supportsPrompt?: boolean;
-  maxFileSize?: number;
-  maxDuration?: number;
+  baseUrl: string;
+  model: string;
+  supportsLanguage: boolean;
+  supportsPrompt: boolean;
+  maxFileSize: number;
+  maxDuration: number;
 } {
-  switch (provider.toLowerCase()) {
-    case "groq":
-      return {
-        apiKey: process.env.GROQ_API_KEY,
-        baseUrl: "https://api.groq.com/openai/v1",
-        model: "whisper-large-v3-turbo",
-        supportsLanguage: true,
-        supportsPrompt: true,
-        maxFileSize: 25 * 1024 * 1024, // 25MB
-        maxDuration: 600, // 10 minutes
-      };
-
-    case "huggingface":
-    case "hf":
-      return {
-        apiKey: process.env.HF_API_KEY,
-        baseUrl:
-          "https://api-inference.huggingface.co/models/openai/whisper-large-v3",
-        model: "openai/whisper-large-v3",
-        supportsLanguage: true,
-        supportsPrompt: true,
-        maxFileSize: 25 * 1024 * 1024, // 25MB
-        maxDuration: 600, // 10 minutes
-      };
-
-    default:
-      throw new Error(`Unknown provider: ${provider}`);
-  }
+  return {
+    apiKey: process.env.HF_API_KEY,
+    baseUrl:
+      "https://api-inference.huggingface.co/models/openai/whisper-large-v3",
+    model: "openai/whisper-large-v3",
+    supportsLanguage: true,
+    supportsPrompt: true,
+    maxFileSize: 25 * 1024 * 1024, // 25MB
+    maxDuration: 600, // 10 minutes
+  };
 }
 
-export function isProviderAvailable(provider: string): boolean {
-  const settings = getProviderSettings(provider);
-  return !!settings.apiKey || provider.toLowerCase() === "huggingface"; // HuggingFace works without API key
-}
-
-export function getAvailableProviders(): string[] {
-  const config = getTranscriptionConfig();
-  return config.providers.filter((provider) => isProviderAvailable(provider));
+export function isHuggingFaceAvailable(): boolean {
+  const settings = getHuggingFaceSettings();
+  return true; // HuggingFace works without API key
 }
