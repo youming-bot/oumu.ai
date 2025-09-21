@@ -1,5 +1,6 @@
-import type { AudioChunk } from "./audio-processor";
+import type { AudioChunk } from './audio-processor';
 
+// biome-ignore lint/style/useNamingConvention: External API response type
 export interface HFTranscriptionResponse {
   text: string;
   language?: string;
@@ -12,12 +13,16 @@ export interface HFTranscriptionResponse {
     text: string;
     tokens: number[];
     temperature: number;
+    // biome-ignore lint/style/useNamingConvention: External API field names
     avg_logprob: number;
+    // biome-ignore lint/style/useNamingConvention: External API field names
     compression_ratio: number;
+    // biome-ignore lint/style/useNamingConvention: External API field names
     no_speech_prob: number;
   }>;
 }
 
+// biome-ignore lint/style/useNamingConvention: HuggingFace API prefix
 export interface HFTranscriptionRequest {
   file: Blob;
   model: string;
@@ -25,14 +30,14 @@ export interface HFTranscriptionRequest {
   prompt?: string;
 }
 
+// biome-ignore lint/style/useNamingConvention: HuggingFace API prefix
 export class HFClient {
   private apiKey: string;
   private baseUrl: string;
 
-  constructor(apiKey: string = process.env.HF_API_KEY || "") {
+  constructor(apiKey: string = process.env.HF_API_KEY || '') {
     this.apiKey = apiKey;
-    this.baseUrl =
-      "https://api-inference.huggingface.co/models/openai/whisper-large-v3";
+    this.baseUrl = 'https://api-inference.huggingface.co/models/openai/whisper-large-v3';
   }
 
   async transcribeChunk(
@@ -40,54 +45,35 @@ export class HFClient {
     options: {
       language?: string;
       prompt?: string;
-    } = {},
+    } = {}
   ): Promise<HFTranscriptionResponse> {
-    console.log("🤖 HuggingFace transcribeChunk called for chunk", chunk.index);
+    const formData = new FormData();
+    formData.append('file', chunk.blob, `chunk_${chunk.index}.wav`);
 
-    try {
-      const formData = new FormData();
-      formData.append("file", chunk.blob, `chunk_${chunk.index}.wav`);
-
-      if (options.language) {
-        formData.append("language", options.language);
-      }
-
-      if (options.prompt) {
-        formData.append("prompt", options.prompt);
-      }
-
-      const response = await fetch(this.baseUrl, {
-        method: "POST",
-        headers: {
-          ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
-        },
-        body: formData,
-      });
-
-      console.log("📡 HF API Response status:", response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `HuggingFace API error: ${response.status} - ${errorText}`,
-        );
-      }
-
-      const result = await response.json();
-      console.log(
-        "✅ HuggingFace transcription successful for chunk",
-        chunk.index,
-      );
-      return result;
-    } catch (error) {
-      console.error(
-        "❌ HuggingFace transcription failed for chunk",
-        chunk.index,
-        ":",
-        error,
-      );
-      throw error;
+    if (options.language) {
+      formData.append('language', options.language);
     }
+
+    if (options.prompt) {
+      formData.append('prompt', options.prompt);
+    }
+
+    const response = await fetch(this.baseUrl, {
+      method: 'POST',
+      headers: {
+        // biome-ignore lint/style/useNamingConvention: HTTP header name
+        ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HuggingFace API error: ${response.status} - ${errorText}`);
+    }
+
+    const result = await response.json();
+    return result;
   }
 
   async transcribeChunks(
@@ -98,54 +84,39 @@ export class HFClient {
       onProgress?: (progress: {
         chunkIndex: number;
         totalChunks: number;
-        status: "pending" | "processing" | "completed" | "failed";
+        status: 'pending' | 'processing' | 'completed' | 'failed';
         progress: number;
         error?: string;
       }) => void;
-    } = {},
+    } = {}
   ): Promise<Array<HFTranscriptionResponse & { chunkIndex: number }>> {
-    console.log(
-      "🤖 HuggingFace transcribeChunks called with",
-      chunks.length,
-      "chunks",
-    );
-
     const results: Array<HFTranscriptionResponse & { chunkIndex: number }> = [];
     const errors: Array<{ chunkIndex: number; error: Error }> = [];
-
-    // Process chunks sequentially to avoid rate limiting
-    console.log("🔄 Starting sequential chunk processing...");
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      console.log(`🎵 Processing chunk ${i + 1}/${chunks.length}...`);
 
       try {
         options.onProgress?.({
           chunkIndex: i,
           totalChunks: chunks.length,
-          status: "processing",
+          status: 'processing',
           progress: (i / chunks.length) * 100,
         });
-
-        console.log(`📤 Transcribing chunk ${i}...`);
         const result = await this.transcribeChunk(chunk, options);
-        console.log(`✅ Chunk ${i} transcription completed`);
         results.push({ ...result, chunkIndex: i });
 
         options.onProgress?.({
           chunkIndex: i,
           totalChunks: chunks.length,
-          status: "completed",
+          status: 'completed',
           progress: ((i + 1) / chunks.length) * 100,
         });
 
         // Add delay between requests to avoid rate limiting
         if (i < chunks.length - 1) {
-          console.log(`⏳ Waiting 1 second before next chunk...`);
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       } catch (error) {
-        console.error(`❌ Chunk ${i} failed:`, error);
         errors.push({
           chunkIndex: i,
           error: error instanceof Error ? error : new Error(String(error)),
@@ -154,39 +125,36 @@ export class HFClient {
         options.onProgress?.({
           chunkIndex: i,
           totalChunks: chunks.length,
-          status: "failed",
+          status: 'failed',
           progress: (i / chunks.length) * 100,
           error: error instanceof Error ? error.message : String(error),
         });
       }
     }
 
-    console.log("🎉 All chunks processed, checking for errors...");
-
     if (errors.length > 0) {
       const errorMessage = errors
         .map((e) => `Chunk ${e.chunkIndex}: ${e.error.message}`)
-        .join("; ");
-      throw new Error(
-        `Failed to transcribe ${errors.length} chunks: ${errorMessage}`,
-      );
+        .join('; ');
+      throw new Error(`Failed to transcribe ${errors.length} chunks: ${errorMessage}`);
     }
 
     return results.sort((a, b) => a.chunkIndex - b.chunkIndex);
   }
 }
 
+// biome-ignore lint/style/useNamingConvention: HuggingFace API prefix
 export function mergeHFTranscriptionResults(
-  results: Array<HFTranscriptionResponse & { chunkIndex: number }>,
+  results: Array<HFTranscriptionResponse & { chunkIndex: number }>
 ): HFTranscriptionResponse {
   if (results.length === 0) {
-    return { text: "", segments: [] };
+    return { text: '', segments: [] };
   }
 
   const mergedText = results
     .map((result) => result.text.trim())
     .filter((text) => text.length > 0)
-    .join(" ");
+    .join(' ');
 
   const mergedSegments = results
     .flatMap((result) => result.segments || [])

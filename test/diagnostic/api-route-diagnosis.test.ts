@@ -5,7 +5,7 @@
  * 特别是针对 /api/transcribe 中出现的 IndexedDB 缺失错误。
  */
 
-const { DBUtils } = require('@/lib/db');
+const { DbUtils } = require('@/lib/db');
 const { ErrorHandler } = require('@/lib/error-handler');
 
 // Mock Next.js API 环境
@@ -40,16 +40,16 @@ describe('API 路由数据库集成诊断', () => {
 
   describe('DBUtils 方法可用性测试', () => {
     test('DBUtils 对象应该存在并包含所需方法', () => {
-      expect(DBUtils).toBeTruthy();
-      expect(typeof DBUtils.getFile).toBe('function');
-      expect(typeof DBUtils.addFile).toBe('function');
-      expect(typeof DBUtils.addTranscript).toBe('function');
-      expect(typeof DBUtils.getTranscriptsByFileId).toBe('function');
+      expect(DbUtils).toBeTruthy();
+      expect(typeof DbUtils.getFile).toBe('function');
+      expect(typeof DbUtils.addFile).toBe('function');
+      expect(typeof DbUtils.addTranscript).toBe('function');
+      expect(typeof DbUtils.getTranscriptsByFileId).toBe('function');
     });
 
     test('getFile 方法应该能够处理不存在的文件', async () => {
       try {
-        const result = await DBUtils.getFile(99999);
+        const result = await DbUtils.getFile(99999);
         expect(result).toBeUndefined();
       } catch (error) {
         // 检查是否是 MissingAPIError
@@ -70,12 +70,12 @@ describe('API 路由数据库集成诊断', () => {
       };
 
       try {
-        const fileId = await DBUtils.addFile(testFileData);
+        const fileId = await DbUtils.addFile(testFileData);
         expect(typeof fileId).toBe('number');
         expect(fileId).toBeGreaterThan(0);
 
         // 验证文件确实被添加了
-        const retrievedFile = await DBUtils.getFile(fileId);
+        const retrievedFile = await DbUtils.getFile(fileId);
         expect(retrievedFile).toBeTruthy();
         expect(retrievedFile.name).toBe('api-test-file.mp3');
       } catch (error) {
@@ -93,7 +93,7 @@ describe('API 路由数据库集成诊断', () => {
       // 首先添加一个测试文件
       let fileId: number | undefined;
       try {
-        fileId = await DBUtils.addFile({
+        fileId = await DbUtils.addFile({
           name: 'transcribe-test.mp3',
           size: 2048,
           type: 'audio/mpeg',
@@ -109,15 +109,15 @@ describe('API 路由数据库集成诊断', () => {
       // 模拟 API 路由中的数据库操作序列
       try {
         // 1. 获取文件 (模拟 route.ts line 32)
-        const file = await DBUtils.getFile(fileId);
+        const file = await DbUtils.getFile(fileId);
         expect(file).toBeTruthy();
 
         // 2. 检查现有转录 (模拟 route.ts line 38)
-        const existingTranscripts = await DBUtils.getTranscriptsByFileId(fileId);
+        const existingTranscripts = await DbUtils.getTranscriptsByFileId(fileId);
         expect(Array.isArray(existingTranscripts)).toBe(true);
 
         // 3. 添加新转录 (模拟 route.ts line 51)
-        const transcriptId = await DBUtils.addTranscript({
+        const transcriptId = await DbUtils.addTranscript({
           fileId,
           status: 'processing',
           language: 'ja',
@@ -127,14 +127,14 @@ describe('API 路由数据库集成诊断', () => {
         expect(typeof transcriptId).toBe('number');
 
         // 4. 更新转录状态 (模拟 route.ts line 73)
-        await DBUtils.updateTranscript(transcriptId, {
+        await DbUtils.updateTranscript(transcriptId, {
           status: 'completed',
           rawText: 'Test transcription text',
           processingTime: 1000,
         });
 
         // 验证更新是否成功
-        const updatedTranscript = await DBUtils.getTranscript(transcriptId);
+        const updatedTranscript = await DbUtils.getTranscript(transcriptId);
         expect(updatedTranscript.status).toBe('completed');
       } catch (error) {
         if (error.message?.includes('IndexedDB API missing')) {
@@ -148,12 +148,12 @@ describe('API 路由数据库集成诊断', () => {
     test('模拟错误情况下的数据库操作', async () => {
       try {
         // 尝试获取不存在的文件
-        const nonExistentFile = await DBUtils.getFile(99999);
+        const nonExistentFile = await DbUtils.getFile(99999);
         expect(nonExistentFile).toBeUndefined();
 
         // 尝试添加无效的转录数据 (fileId 不存在)
         await expect(async () => {
-          await DBUtils.addTranscript({
+          await DbUtils.addTranscript({
             fileId: 99999,
             status: 'processing',
             language: 'ja',
@@ -237,7 +237,7 @@ describe('API 路由数据库集成诊断', () => {
       );
 
       // 模拟 ErrorHandler 处理
-      const handledError = ErrorHandler.handleError(mockError, 'DBUtils.getFile');
+      const handledError = ErrorHandler.handleError(mockError, 'DbUtils.getFile');
 
       expect(handledError.message).toContain('IndexedDB API missing');
     });

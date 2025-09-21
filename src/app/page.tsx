@@ -1,14 +1,14 @@
-"use client";
+'use client';
 
-import { useCallback, useMemo } from "react";
-import { toast } from "sonner";
-import AudioPlayer from "@/components/audio-player";
-import ExportImport from "@/components/export-import";
-import FileList from "@/components/file-list";
-import FileUpload from "@/components/file-upload";
-import Layout from "@/components/layout";
-import SubtitleDisplay from "@/components/subtitle-display";
-import TerminologyGlossary from "@/components/terminology-glossary";
+import { useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
+import AudioPlayer from '@/components/audio-player';
+import ExportImport from '@/components/export-import';
+import FileList from '@/components/file-list';
+import FileUpload from '@/components/file-upload';
+import Layout from '@/components/layout';
+import SubtitleDisplay from '@/components/subtitle-display';
+import TerminologyGlossary from '@/components/terminology-glossary';
 // Import custom hooks for state management
 import {
   useAppState,
@@ -17,12 +17,12 @@ import {
   useTerms,
   useTranscriptionProgress,
   useTranscripts,
-} from "@/hooks";
-import { useMemoryCleanup } from "@/hooks/useMemoryCleanup";
-import { handleAndShowError } from "@/lib/error-handler";
-import { FileUploadUtils } from "@/lib/file-upload";
-import { TranscriptionService } from "@/lib/transcription-service";
-import type { FileRow } from "@/types/database";
+} from '@/hooks';
+import { useMemoryCleanup } from '@/hooks/useMemoryCleanup';
+import { handleAndShowError } from '@/lib/error-handler';
+import { FileUploadUtils } from '@/lib/file-upload';
+import { type TranscriptionProgress, TranscriptionService } from '@/lib/transcription-service';
+import type { FileRow } from '@/types/database';
 
 export default function Home() {
   // Use memory cleanup hook for global resource management
@@ -49,32 +49,13 @@ export default function Home() {
     handleSeek,
     clearAudio,
   } = useAudioPlayer();
-  const { transcriptionProgress } = useTranscriptionProgress(
-    files,
-    transcripts,
-  );
-  const {
-    viewState,
-    fileUploadState,
-    setViewState,
-    updateViewState,
-    updateFileUploadState,
-  } = useAppState();
+  const { transcriptionProgress } = useTranscriptionProgress(files, transcripts);
+  const { viewState, fileUploadState, setViewState, updateViewState, updateFileUploadState } =
+    useAppState();
 
   const handleFilesSelected = useCallback(
     async (selectedFiles: File[]) => {
       if (selectedFiles.length === 0) return;
-
-      console.log(
-        "🚀 handleFilesSelected called with",
-        selectedFiles.length,
-        "files:",
-        selectedFiles.map((f) => ({
-          name: f.name,
-          size: f.size,
-          type: f.type,
-        })),
-      );
 
       updateFileUploadState({
         selectedFiles,
@@ -86,65 +67,29 @@ export default function Home() {
         // Process files sequentially to avoid overwhelming the system
         const uploadPromises = selectedFiles.map(async (file, index) => {
           try {
-            console.log(
-              `📤 Starting upload for file ${index + 1}/${selectedFiles.length}: ${file.name}`,
-            );
             const fileId = await FileUploadUtils.uploadFile(file);
-            console.log(`✅ File uploaded successfully. File ID: ${fileId}`);
 
             // Update progress
             updateFileUploadState({
-              uploadProgress: Math.round(
-                ((index + 1) / selectedFiles.length) * 100,
-              ),
+              uploadProgress: Math.round(((index + 1) / selectedFiles.length) * 100),
             });
 
-            // Start transcription process with detailed logging
-            console.log(
-              `🎵 Starting transcription for file: ${file.name} (ID: ${fileId})`,
-            );
-            console.log(
-              `🔍 About to call TranscriptionService.transcribeAudio...`,
-            );
-
             TranscriptionService.transcribeAudio(fileId, {
-              language: "ja",
-              onProgress: (progress) => {
-                console.log(
-                  `📊 Transcription progress for ${file.name}:`,
-                  progress,
-                );
+              language: 'ja',
+              onProgress: (_progress: TranscriptionProgress) => {
+                // Progress callback - intentionally empty for now
               },
             })
-              .then((transcriptResult) => {
-                console.log(
-                  `✅ Transcription completed for ${file.name}. Result:`,
-                  transcriptResult,
-                );
+              .then((_transcriptResult) => {
                 toast.success(`Transcription completed for ${file.name}`);
               })
               .catch((transcriptionError) => {
-                console.error(
-                  `❌ Transcription failed for ${file.name}:`,
-                  transcriptionError,
-                );
-                console.error(`❌ Error details:`, {
-                  message: transcriptionError.message,
-                  stack: transcriptionError.stack,
-                  name: transcriptionError.name,
-                });
-                toast.error(
-                  `Transcription failed for ${file.name}: ${transcriptionError.message}`,
-                );
+                toast.error(`Transcription failed for ${file.name}: ${transcriptionError.message}`);
               });
 
             return { success: true, fileId };
           } catch (error) {
-            handleAndShowError(
-              error,
-              "processFile",
-              `Failed to process ${file.name}`,
-            );
+            handleAndShowError(error, 'processFile', `Failed to process ${file.name}`);
             return { success: false, error, fileName: file.name };
           }
         });
@@ -167,7 +112,7 @@ export default function Home() {
           selectedFiles: [],
         });
       } catch (error) {
-        handleAndShowError(error, "fileUpload");
+        handleAndShowError(error, 'fileUpload');
         updateFileUploadState({
           isUploading: false,
           uploadProgress: 0,
@@ -175,7 +120,7 @@ export default function Home() {
         });
       }
     },
-    [updateFileUploadState, loadFiles],
+    [updateFileUploadState, loadFiles]
   );
 
   const handlePlayFile = useCallback(
@@ -185,7 +130,7 @@ export default function Home() {
 
       setViewState({
         ...viewState,
-        currentView: "player",
+        currentView: 'player',
         selectedFile: file,
       });
       updatePlayerState({ isPlaying: true });
@@ -200,22 +145,18 @@ export default function Home() {
 
         // Load transcripts for this file
         if (!file.id) {
-          toast.error("File ID is missing");
+          toast.error('File ID is missing');
           return;
         }
-        const fileTranscripts = await TranscriptionService.getFileTranscripts(
-          file.id,
-        );
+        const fileTranscripts = await TranscriptionService.getFileTranscripts(file.id);
         // Store transcripts for the progress polling
         await loadTranscriptsByFileId(file.id);
 
         // If there are completed transcripts, load their segments
-        const completedTranscript = fileTranscripts.find(
-          (t) => t.status === "completed",
-        );
+        const completedTranscript = fileTranscripts.find((t) => t.status === 'completed');
         if (completedTranscript) {
           if (!completedTranscript.id) {
-            toast.error("Transcript ID is missing");
+            toast.error('Transcript ID is missing');
             return;
           }
           await loadSegmentsByTranscriptId(completedTranscript.id);
@@ -224,7 +165,7 @@ export default function Home() {
           clearSegments();
         }
       } catch (error) {
-        handleAndShowError(error, "loadFileData");
+        handleAndShowError(error, 'loadFileData');
         clearSegments();
       }
     },
@@ -237,7 +178,7 @@ export default function Home() {
       loadTranscriptsByFileId,
       loadSegmentsByTranscriptId,
       clearSegments,
-    ],
+    ]
   );
 
   const handleDeleteFile = useCallback(
@@ -247,10 +188,10 @@ export default function Home() {
         // Reload files to reflect the deletion
         await loadFiles();
       } catch (error) {
-        handleAndShowError(error, "deleteFile");
+        handleAndShowError(error, 'deleteFile');
       }
     },
-    [loadFiles],
+    [loadFiles]
   );
 
   const handlePlay = useCallback(() => {
@@ -265,7 +206,7 @@ export default function Home() {
     (start: number, end: number) => {
       setLoopPoints(start, end);
     },
-    [setLoopPoints],
+    [setLoopPoints]
   );
 
   const handleClearLoop = useCallback(() => {
@@ -276,7 +217,7 @@ export default function Home() {
     (start: number, end: number) => {
       setLoopPoints(start, end);
     },
-    [setLoopPoints],
+    [setLoopPoints]
   );
 
   const handleClearAbLoop = useCallback(() => {
@@ -285,7 +226,7 @@ export default function Home() {
 
   const renderCurrentView = useMemo(() => {
     switch (viewState.currentView) {
-      case "upload":
+      case 'upload':
         return (
           <div className="space-y-6">
             <FileUpload
@@ -296,7 +237,7 @@ export default function Home() {
           </div>
         );
 
-      case "files":
+      case 'files':
         return (
           <div className="space-y-6">
             <h2 className="mb-6 font-semibold text-2xl">Your Files</h2>
@@ -311,12 +252,12 @@ export default function Home() {
           </div>
         );
 
-      case "player":
+      case 'player':
         return (
           <div className="space-y-6">
             <div>
               <h2 className="mb-6 font-semibold text-2xl">
-                {viewState.selectedFile?.name || "Audio Player"}
+                {viewState.selectedFile?.name || 'Audio Player'}
               </h2>
               <AudioPlayer
                 audioUrl={audioUrl}
@@ -352,12 +293,10 @@ export default function Home() {
           </div>
         );
 
-      case "terminology":
+      case 'terminology':
         return (
           <div className="space-y-6">
-            <h2 className="mb-6 font-semibold text-2xl">
-              Terminology Glossary
-            </h2>
+            <h2 className="mb-6 font-semibold text-2xl">Terminology Glossary</h2>
             <TerminologyGlossary
               terms={terms}
               onAddTerm={addTerm}
@@ -367,7 +306,7 @@ export default function Home() {
           </div>
         );
 
-      case "settings":
+      case 'settings':
         return (
           <div className="space-y-6">
             <h2 className="mb-6 font-semibold text-2xl">Data Management</h2>
@@ -410,10 +349,10 @@ export default function Home() {
   ]);
 
   const handleViewChange = useCallback(
-    (view: "files" | "terminology" | "upload" | "player" | "settings") => {
+    (view: 'files' | 'terminology' | 'upload' | 'player' | 'settings') => {
       updateViewState({ currentView: view });
     },
-    [updateViewState],
+    [updateViewState]
   );
 
   return (

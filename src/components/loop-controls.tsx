@@ -6,9 +6,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface LoopControlsProps {
   loopStart?: number;
-  loopEnd?: number;
+  _loopEnd?: number;
   abLoopStart?: number;
-  abLoopEnd?: number;
+  _abLoopEnd?: number;
   formattedLoopTime?: string | null;
   formattedAbLoopTime?: string | null;
   getAbLoopStatus: string;
@@ -21,9 +21,9 @@ interface LoopControlsProps {
 const LoopControls = React.memo<LoopControlsProps>(
   ({
     loopStart,
-    loopEnd,
+    _loopEnd,
     abLoopStart,
-    abLoopEnd,
+    _abLoopEnd,
     formattedLoopTime,
     formattedAbLoopTime,
     getAbLoopStatus,

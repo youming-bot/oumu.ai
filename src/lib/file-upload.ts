@@ -3,26 +3,15 @@ import { DbUtils } from './db';
 import { URLManager } from './url-manager';
 
 export async function uploadFile(file: File): Promise<number> {
-  console.log('📤 FileUploadUtils.uploadFile called with:', {
-    name: file.name,
-    size: file.size,
-    type: file.type,
-  });
-
   try {
     if (!file.type.startsWith('audio/')) {
-      console.error('❌ File type not supported:', file.type);
       throw new Error('Only audio files are supported');
     }
 
     if (file.size > 100 * 1024 * 1024) {
-      console.error('❌ File size too large:', file.size);
       throw new Error('File size must be less than 100MB');
     }
-
-    console.log('✅ File validation passed');
     const blob = new Blob([file], { type: file.type });
-    console.log('✅ Blob created');
 
     const fileRow: Omit<FileRow, 'id' | 'createdAt' | 'updatedAt'> = {
       name: file.name,
@@ -30,14 +19,10 @@ export async function uploadFile(file: File): Promise<number> {
       type: file.type,
       blob: blob,
     };
-
-    console.log('📝 Adding file to database...');
     const fileId = await DbUtils.addFile(fileRow);
-    console.log('✅ File added to database with ID:', fileId);
 
     return fileId;
   } catch (error) {
-    console.error('❌ File upload failed:', error);
     throw new Error(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

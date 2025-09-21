@@ -78,27 +78,16 @@ export const db = new ShadowingLearningDb();
 export async function addFile(
   fileData: Omit<FileRow, 'id' | 'createdAt' | 'updatedAt'>
 ): Promise<number> {
-  console.log('📝 DbUtils.addFile called with:', {
-    name: fileData.name,
-    size: fileData.size,
-    type: fileData.type,
-    blobSize: fileData.blob.size,
-  });
-
   try {
     const now = new Date();
-    console.log('⏰ Creating file record with timestamp:', now);
 
     const fileId = await db.files.add({
       ...fileData,
       createdAt: now,
       updatedAt: now,
     });
-
-    console.log('✅ File added to database with ID:', fileId);
     return fileId;
   } catch (error) {
-    console.error('❌ Failed to add file to database:', error);
     const appError = handleError(error, 'DBUtils.addFile');
     throw appError;
   }

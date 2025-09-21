@@ -1,278 +1,193 @@
-# Development Guide
+# 开发者指南
 
-Welcome to the development documentation for the Shadowing Learning project. This section provides comprehensive resources for developers contributing to the project.
+欢迎使用 Shadowing Learning 项目的开发者指南！本文档为参与项目开发的开发者提供全面的资源。
 
-## 📚 Development Resources
+## 📋 开发者资源
 
-### 🚀 Getting Started
-- [Development Setup](setup.md) - Environment configuration and tools
-- [Coding Standards](coding-standards.md) - Code style and conventions
-- [Testing Strategy](testing.md) - Testing approach and tools
-- [Error Handling](error-handling.md) - Error management patterns
-- [Deployment Guide](deployment.md) - Production deployment and DevOps
+### 🚀 快速开始
+- [开发环境设置](setup.md) - 配置您的开发环境
+- [编码标准](coding-standards.md) - 了解项目的代码规范
+- [测试策略](testing.md) - 掌握测试方法和最佳实践
+- [完整开发指南](development-guide.md) - 全面的开发流程指南
 
-### 🏗️ Technical Architecture
-- [System Architecture](../architecture/system-design.md) - High-level design
-- [Component Architecture](../architecture/components.md) - Frontend structure
-- [API Reference](../api-reference/README.md) - API documentation
+### 🔧 核心开发概念
+- **技术栈**: Next.js 15 + React 19 + TypeScript + shadcn/ui
+- **状态管理**: 使用自定义 React hooks
+- **数据持久化**: IndexedDB + Dexie
+- **API 集成**: Groq Whisper + OpenRouter LLM
+- **测试框架**: Jest + Testing Library
 
-### 🛠️ Development Tools
-- **TypeScript**: Strict typing and compilation
-- **Biome.js**: Code formatting and linting
-- **Jest**: Testing framework
-- **React Testing Library**: Component testing
-- **shadcn/ui**: UI component library
-- **pnpm**: Package manager
+### 🛠️ 开发工具
+- **代码质量**: Biome.js (linting + formatting)
+- **包管理**: pnpm
+- **版本控制**: Git + GitHub
+- **开发服务器**: Next.js 内置开发服务器
 
-### 📁 Project Structure
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── api/               # API routes
-│   ├── layout.tsx         # Root layout
-│   └── page.tsx           # Main page
-├── components/            # React components
-│   ├── ui/               # shadcn/ui components
-│   └── *.tsx             # Custom components
-├── hooks/                 # Custom React hooks
-├── lib/                   # Utility libraries
-├── types/                 # TypeScript definitions
-└── __tests__/             # Test files
-```
+## 🎯 开发工作流
 
-## 🎯 Quick Start for Developers
-
-### 1. Environment Setup
+### 1. 环境设置
 ```bash
-# Clone repository
+# 克隆项目
 git clone https://github.com/your-repo/shadowing-learning.git
 cd shadowing-learning
 
-# Install dependencies
+# 安装依赖
 pnpm install
 
-# Configure environment
+# 配置环境变量
 cp .env.example .env.local
-# Edit .env.local with your API keys
+# 编辑 .env.local 添加 API 密钥
 
-# Start development
+# 启动开发服务器
 pnpm dev
 ```
 
-### 2. Development Commands
+### 2. 日常开发
 ```bash
-# Type checking
-pnpm type-check
+# 运行类型检查
+pnpm run type-check
 
-# Code quality
-pnpm lint
-pnpm format
-pnpm check
+# 代码质量检查
+pnpm run lint
 
-# Testing
+# 运行测试
 pnpm test
-pnpm test:watch
-pnpm test:coverage
 
-# Build
-pnpm build
+# 构建项目
+pnpm run build
 ```
 
-### 3. Development Workflow
-```bash
-# Create feature branch
-git checkout -b feature/your-feature
+### 3. 贡献流程
+1. 创建功能分支：`git checkout -b feature/new-feature main`
+2. 开发和提交：`git commit -m "feat: add new feature"`
+3. 推送分支：`git push origin feature/new-feature`
+4. 创建 Pull Request
+5. 等待代码审查
+6. 合并到主分支
 
-# Make changes
-# Write tests
-# Run checks
-pnpm check && pnpm test
+## 📚 重要文档
 
-# Commit changes
-git commit -m "feat: add your feature"
+### 必读文档
+- [架构设计](../architecture/system-design.md) - 了解系统架构
+- [API 参考](../api-reference/README.md) - API 集成指南
+- [错误处理](error-handling.md) - 错误管理策略
+- [部署指南](deployment.md) - 部署和运维
 
-# Push and create PR
-git push origin feature/your-feature
-```
+### 参考文档
+- [代码审查报告](../code-review/README.md) - 当前项目状态分析
+- [项目计划](../project-management/development-plan.md) - 开发路线图
+- [术语表](../appendices/glossary.md) - 项目术语解释
 
-## 📋 Development Guidelines
+## 🔍 开发者工具和配置
 
-### Code Quality
-- **TypeScript**: Strict mode, no `any` types
-- **Testing**: 80%+ coverage required
-- **Documentation**: JSDoc comments for all functions
-- **Standards**: Follow Biome.js formatting
+### VS Code 配置
+项目包含完整的 VS Code 配置，包括：
+- TypeScript 支持
+- Biome.js 集成
+- 调试配置
+- 推荐扩展
 
-### Commit Messages
-- Use [Conventional Commits](https://conventionalcommits.org/)
-- Format: `type(scope): description`
-- Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
+### Pre-commit 钩子
+项目配置了 pre-commit 钩子，确保代码质量：
+- 自动代码格式化
+- 代码质量检查
+- 类型检查
 
-### Pull Requests
-- **Description**: Detailed explanation of changes
-- **Testing**: All tests must pass
-- **Documentation**: Update relevant documentation
-- **Review**: Address all reviewer feedback
+### 测试配置
+- 单元测试：Jest
+- 集成测试：Testing Library
+- 测试覆盖率要求：80%+
 
-## 🔧 Common Development Tasks
+## 🎨 组件开发
 
-### Adding New Components
-```typescript
-// src/components/new-component.tsx
-interface NewComponentProps {
-  title: string;
-  onAction?: () => void;
-}
+### UI 组件
+项目使用 shadcn/ui 组件库：
+- 现代化设计系统
+- 可访问性支持
+- TypeScript 类型安全
+- 主题支持
 
-export const NewComponent: React.FC<NewComponentProps> = ({
-  title,
-  onAction
-}) => {
-  return (
-    <div className="component">
-      <h2>{title}</h2>
-      {onAction && <button onClick={onAction}>Action</button>}
-    </div>
-  );
-};
-```
+### 自定义 Hooks
+项目包含多个自定义 hooks：
+- `useAppState` - 全局应用状态
+- `useAudioPlayer` - 音频播放控制
+- `useFiles` - 文件管理
+- `useTranscripts` - 转录数据处理
 
-### Adding New Hooks
-```typescript
-// src/hooks/use-new-hook.ts
-export function useNewHook(initialValue: string) {
-  const [value, setValue] = useState(initialValue);
+## 🧪 测试策略
 
-  const updateValue = useCallback((newValue: string) => {
-    setValue(newValue);
-  }, []);
+### 测试类型
+- **单元测试**: 测试独立函数和组件
+- **集成测试**: 测试组件间的交互
+- **E2E 测试**: 端到端用户流程测试
 
-  return { value, updateValue };
-}
-```
+### 测试最佳实践
+- 使用 Testing Library 进行组件测试
+- Mock 外部依赖
+- 测试用户交互，而不是实现细节
+- 保持测试的可维护性
 
-### Adding New API Routes
-```typescript
-// src/app/api/new-endpoint/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+## 🚀 部署和发布
 
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    // Process request
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-```
+### 部署选项
+- **Vercel**: 推荐的零配置部署
+- **Netlify**: 另一个优秀的托管选项
+- **Docker**: 容器化部署
+- **自托管**: 完全控制的服务器部署
 
-## 🧪 Testing Guidelines
+### 发布流程
+1. 更新版本号
+2. 更新 CHANGELOG
+3. 创建发布分支
+4. 运行完整测试套件
+5. 部署到生产环境
+6. 创建 GitHub Release
 
-### Unit Tests
-```typescript
-describe('NewComponent', () => {
-  it('renders with title', () => {
-    const { getByText } = render(<NewComponent title="Test" />);
-    expect(getByText('Test')).toBeInTheDocument();
-  });
-});
-```
+## 📊 监控和调试
 
-### Integration Tests
-```typescript
-describe('User Workflow', () => {
-  it('completes file upload workflow', async () => {
-    const user = userEvent.setup();
-    render(<App />);
+### 开发工具
+- React DevTools - 组件状态和性能分析
+- 浏览器开发者工具 - 网络和性能调试
+- Next.js 开发工具 - 构建和路由分析
 
-    // Simulate user actions
-    await user.upload(fileInput, testFile);
-    await waitFor(() => {
-      expect(screen.getByText('Upload complete')).toBeInTheDocument();
-    });
-  });
-});
-```
+### 日志和监控
+- 应用内日志系统
+- 错误跟踪 (可选 Sentry 集成)
+- 性能监控
 
-## 🚨 Common Issues
+## 🆘 获取帮助
 
-### TypeScript Errors
-```bash
-# Check types
-pnpm type-check
+### 技术支持
+- **GitHub Issues**: 报告 bug 和请求功能
+- **GitHub Discussions**: 技术问题和讨论
+- **Stack Overflow**: 使用项目标签提问
 
-# Clear cache
-rm -rf .next node_modules/.cache
-pnpm install
-```
+### 开发资源
+- [Next.js 文档](https://nextjs.org/docs)
+- [React 文档](https://react.dev/)
+- [TypeScript 文档](https://www.typescriptlang.org/docs/)
+- [shadcn/ui 文档](https://ui.shadcn.com/)
 
-### Test Failures
-```bash
-# Run specific test
-pnpm test -- --testPathPattern=filename
+### 社区
+- 加入我们的 [Discord 服务器](https://discord.gg/shadowing-learning)
+- 关注 [GitHub Discussions](https://github.com/your-repo/shadowing-learning/discussions)
+- 订阅项目更新
 
-# Debug tests
-pnpm test:watch -- --verbose
+## 🎯 贡献指南
 
-# Clear Jest cache
-pnpm test -- --clearCache
-```
+### 贡献方式
+1. **代码贡献**: 修复 bug、添加功能、改进文档
+2. **文档改进**: 修复错误、添加示例、改进说明
+3. **问题报告**: 报告 bug、建议改进
+4. **社区参与**: 帮助其他用户、参与讨论
 
-### Build Issues
-```bash
-# Clean build
-rm -rf .next out
-pnpm install
-pnpm build
-```
-
-## 🚀 Deployment
-
-### Production Build
-```bash
-# Build for production
-pnpm build
-
-# Test production build
-pnpm start
-
-# Deploy to Vercel
-vercel --prod
-```
-
-### Environment Configuration
-```env
-# Production
-NODE_ENV=production
-GROQ_API_KEY=your_production_key
-OPENROUTER_API_KEY=your_production_key
-```
-
-## 📚 Additional Resources
-
-### Project Documentation
-- [Project Overview](../README.md)
-- [Architecture](../architecture/README.md)
-- [User Guide](../user-guide/README.md)
-- [API Reference](../api-reference/README.md)
-- [Contributing Guidelines](../appendices/contributing.md)
-
-### External Resources
-- [Next.js Documentation](https://nextjs.org/docs)
-- [React Documentation](https://react.dev)
-- [TypeScript Documentation](https://www.typescriptlang.org/docs)
-- [shadcn/ui Documentation](https://ui.shadcn.com)
-- [Biome.js Documentation](https://biomejs.dev)
-
-### Community
-- [GitHub Issues](https://github.com/your-repo/shadowing-learning/issues)
-- [GitHub Discussions](https://github.com/your-repo/shadowing-learning/discussions)
-- [Stack Overflow](https://stackoverflow.com)
+### 贡献准则
+- 遵循项目编码标准
+- 编写适当的测试
+- 更新相关文档
+- 保持向后兼容性
+- 尊重项目许可证
 
 ---
 
-*This guide is part of the Development series. See individual guides for detailed information on specific topics.*
+*开发者指南 | 版本: 1.0 | 最后更新: 2024年9月22日*

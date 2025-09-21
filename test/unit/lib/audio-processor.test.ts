@@ -103,8 +103,20 @@ describe('Audio Processor', () => {
 
       // Mock sliceAudio to return test chunks
       const mockChunks = [
-        { blob: new Blob(['chunk1']), startTime: 0, endTime: 45, duration: 45, index: 0 },
-        { blob: new Blob(['chunk2']), startTime: 44.8, endTime: 60, duration: 15.2, index: 1 },
+        {
+          blob: new Blob(['chunk1']),
+          startTime: 0,
+          endTime: 45,
+          duration: 45,
+          index: 0,
+        },
+        {
+          blob: new Blob(['chunk2']),
+          startTime: 44.8,
+          endTime: 60,
+          duration: 15.2,
+          index: 1,
+        },
       ];
 
       jest.spyOn(AudioProcessor, 'getAudioDuration').mockResolvedValue(60);
@@ -117,7 +129,9 @@ describe('Audio Processor', () => {
       expect(chunks).toEqual(mockChunks);
       expect(FileUploadUtils.getFileBlob).toHaveBeenCalledWith(123);
       expect(AudioProcessor.getAudioDuration).toHaveBeenCalledWith(mockBlob);
-      expect(FileUploadUtils.updateFileMetadata).toHaveBeenCalledWith(123, { duration: 60 });
+      expect(FileUploadUtils.updateFileMetadata).toHaveBeenCalledWith(123, {
+        duration: 60,
+      });
       expect(AudioProcessor.sliceAudio).toHaveBeenCalledWith(mockBlob, 0, 60, 45, 0.2);
     });
 

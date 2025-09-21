@@ -1,5 +1,5 @@
-import { HFClient, mergeHFTranscriptionResults } from "./hf-client";
-import type { AudioChunk } from "./audio-processor";
+import type { AudioChunk } from './audio-processor';
+import { HFClient, mergeHFTranscriptionResults } from './hf-client';
 
 export interface TranscriptionOptions {
   language?: string;
@@ -7,7 +7,7 @@ export interface TranscriptionOptions {
   onProgress?: (progress: {
     chunkIndex: number;
     totalChunks: number;
-    status: "pending" | "processing" | "completed" | "failed";
+    status: 'pending' | 'processing' | 'completed' | 'failed';
     progress: number;
     error?: string;
   }) => void;
@@ -40,47 +40,28 @@ export class HuggingFaceTranscriptionService {
     chunks: AudioChunk[],
     options: TranscriptionOptions = {}
   ): Promise<TranscriptionResult> {
-    console.log("🤖 Starting HuggingFace transcription...");
-    console.log("📊 Processing", chunks.length, "chunks");
+    const results = await this.hfClient.transcribeChunks(chunks, {
+      language: options.language,
+      prompt: options.prompt,
+      onProgress: (progress) => {
+        options.onProgress?.(progress);
+      },
+    });
 
-    try {
-      const results = await this.hfClient.transcribeChunks(chunks, {
-        language: options.language,
-        prompt: options.prompt,
-        onProgress: (progress) => {
-          console.log("📊 Transcription progress:", progress);
-          options.onProgress?.(progress);
-        },
-      });
+    // Use the existing merge function
+    const mergedResult = mergeHFTranscriptionResults(results);
 
-      console.log("✅ All chunks transcribed successfully");
-      console.log("🔄 Merging results...");
-
-      // Use the existing merge function
-      const mergedResult = mergeHFTranscriptionResults(results);
-
-      console.log("🎉 Transcription completed successfully");
-      console.log("📊 Final result:", {
-        textLength: mergedResult.text?.length,
-        segmentCount: mergedResult.segments?.length,
-        language: mergedResult.language,
-      });
-
-      return {
-        text: mergedResult.text || "",
-        language: mergedResult.language,
-        duration: mergedResult.duration,
-        segments: mergedResult.segments?.map(segment => ({
-          start: segment.start,
-          end: segment.end,
-          text: segment.text,
-          wordTimestamps: [], // HuggingFace doesn't provide word-level timestamps
-        })),
-      };
-    } catch (error) {
-      console.error("❌ Transcription failed:", error);
-      throw error;
-    }
+    return {
+      text: mergedResult.text || '',
+      language: mergedResult.language,
+      duration: mergedResult.duration,
+      segments: mergedResult.segments?.map((segment) => ({
+        start: segment.start,
+        end: segment.end,
+        text: segment.text,
+        wordTimestamps: [], // HuggingFace doesn't provide word-level timestamps
+      })),
+    };
   }
 }
 

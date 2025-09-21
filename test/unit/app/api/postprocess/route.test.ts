@@ -1,5 +1,10 @@
 import { POST } from '../../../../../src/app/api/postprocess/route';
-import { OpenRouterClient } from '../../../../../src/lib/openrouter-client';
+import { postProcessSegments } from '../../../../../src/lib/openrouter-client';
+
+jest.mock('@/lib/openrouter-client');
+const mockPostProcessSegments = postProcessSegments as jest.MockedFunction<
+  typeof postProcessSegments
+>;
 
 // Mock Next.js server components
 jest.mock('next/server', () => ({
@@ -26,11 +31,6 @@ jest.mock('next/server', () => ({
     })),
   },
 }));
-
-// Mock dependencies
-jest.mock('@/lib/openrouter-client');
-
-const mockOpenRouterClient = OpenRouterClient as jest.Mocked<typeof OpenRouterClient>;
 
 // Mock Next.js Request to avoid Node.js environment issues
 const createMockRequest = (url: string, init?: { method?: string; body?: string }) => ({
@@ -80,7 +80,7 @@ describe('/api/postprocess', () => {
 
     it('should successfully post-process segments', async () => {
       // Setup mock
-      mockOpenRouterClient.postProcessSegments.mockResolvedValue(mockProcessedSegments);
+      mockPostProcessSegments.mockResolvedValue(mockProcessedSegments);
 
       const request = createMockRequest('http://localhost/api/postprocess', {
         method: 'POST',
@@ -106,7 +106,7 @@ describe('/api/postprocess', () => {
       expect(returnedSegment.furigana).toBe('こんにちは、これはテストおんせいです。');
 
       // Verify OpenRouter client was called with correct parameters
-      expect(mockOpenRouterClient.postProcessSegments).toHaveBeenCalledWith(
+      expect(mockPostProcessSegments).toHaveBeenCalledWith(
         [
           {
             text: 'こんにちは、これはテスト音声です。',
@@ -128,7 +128,7 @@ describe('/api/postprocess', () => {
     });
 
     it('should use default values when optional parameters not provided', async () => {
-      mockOpenRouterClient.postProcessSegments.mockResolvedValue(mockProcessedSegments);
+      mockPostProcessSegments.mockResolvedValue(mockProcessedSegments);
 
       const minimalRequest = createMockRequest('http://localhost/api/postprocess', {
         method: 'POST',
@@ -145,7 +145,7 @@ describe('/api/postprocess', () => {
 
       await POST(minimalRequest as any);
 
-      expect(mockOpenRouterClient.postProcessSegments).toHaveBeenCalledWith(
+      expect(mockPostProcessSegments).toHaveBeenCalledWith(
         expect.any(Array),
         'ja', // Default language
         {
@@ -181,7 +181,7 @@ describe('/api/postprocess', () => {
         },
       ];
 
-      mockOpenRouterClient.postProcessSegments.mockResolvedValue(multipleProcessed);
+      mockPostProcessSegments.mockResolvedValue(multipleProcessed);
 
       const request = createMockRequest('http://localhost/api/postprocess', {
         method: 'POST',
@@ -219,7 +219,7 @@ describe('/api/postprocess', () => {
         },
       ];
 
-      mockOpenRouterClient.postProcessSegments.mockResolvedValue([mockProcessedSegments[0]]);
+      mockPostProcessSegments.mockResolvedValue([mockProcessedSegments[0]]);
 
       const request = createMockRequest('http://localhost/api/postprocess', {
         method: 'POST',
@@ -247,7 +247,7 @@ describe('/api/postprocess', () => {
         },
       ];
 
-      mockOpenRouterClient.postProcessSegments.mockResolvedValue(mockProcessedSegments);
+      mockPostProcessSegments.mockResolvedValue(mockProcessedSegments);
 
       const request = createMockRequest('http://localhost/api/postprocess', {
         method: 'POST',
@@ -259,7 +259,7 @@ describe('/api/postprocess', () => {
 
       await POST(request as any);
 
-      expect(mockOpenRouterClient.postProcessSegments).toHaveBeenCalledWith(
+      expect(mockPostProcessSegments).toHaveBeenCalledWith(
         expect.any(Array),
         'ja',
         expect.objectContaining({
@@ -277,7 +277,7 @@ describe('/api/postprocess', () => {
         },
       ];
 
-      mockOpenRouterClient.postProcessSegments.mockResolvedValue(mockProcessedSegments);
+      mockPostProcessSegments.mockResolvedValue(mockProcessedSegments);
 
       const request = createMockRequest('http://localhost/api/postprocess', {
         method: 'POST',
@@ -290,7 +290,7 @@ describe('/api/postprocess', () => {
 
       await POST(request as any);
 
-      expect(mockOpenRouterClient.postProcessSegments).toHaveBeenCalledWith(
+      expect(mockPostProcessSegments).toHaveBeenCalledWith(
         expect.any(Array),
         'ja',
         expect.objectContaining({
@@ -340,7 +340,7 @@ describe('/api/postprocess', () => {
     });
 
     it('should handle OpenRouter client errors', async () => {
-      mockOpenRouterClient.postProcessSegments.mockRejectedValue(new Error('OpenRouter API error'));
+      mockPostProcessSegments.mockRejectedValue(new Error('OpenRouter API error'));
 
       const request = createMockRequest('http://localhost/api/postprocess', {
         method: 'POST',
@@ -355,7 +355,7 @@ describe('/api/postprocess', () => {
     });
 
     it('should handle empty segments array', async () => {
-      mockOpenRouterClient.postProcessSegments.mockResolvedValue([]);
+      mockPostProcessSegments.mockResolvedValue([]);
 
       const request = createMockRequest('http://localhost/api/postprocess', {
         method: 'POST',

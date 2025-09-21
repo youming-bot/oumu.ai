@@ -223,9 +223,9 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
           <div className="flex items-center justify-between">
             <LoopControls
               loopStart={loopStart}
-              loopEnd={loopEnd}
+              _loopEnd={loopEnd}
               abLoopStart={abLoopStart}
-              abLoopEnd={abLoopEnd}
+              _abLoopEnd={abLoopEnd}
               formattedLoopTime={formattedLoopTime}
               formattedAbLoopTime={formattedAbLoopTime}
               getAbLoopStatus={getAbLoopStatus}

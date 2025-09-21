@@ -14,16 +14,16 @@ export function getTranscriptionConfig(): TranscriptionConfig {
   // Allow override via environment variables
   return {
     timeoutMs: parseInt(
-      process.env.TRANSCRIPTION_TIMEOUT_MS ||
-        defaultConfig.timeoutMs.toString(),
+      process.env.TRANSCRIPTION_TIMEOUT_MS || defaultConfig.timeoutMs.toString(),
+      10
     ),
     retryCount: parseInt(
-      process.env.TRANSCRIPTION_RETRY_COUNT ||
-        defaultConfig.retryCount.toString(),
+      process.env.TRANSCRIPTION_RETRY_COUNT || defaultConfig.retryCount.toString(),
+      10
     ),
     maxConcurrency: parseInt(
-      process.env.TRANSCRIPTION_MAX_CONCURRENCY ||
-        defaultConfig.maxConcurrency.toString(),
+      process.env.TRANSCRIPTION_MAX_CONCURRENCY || defaultConfig.maxConcurrency.toString(),
+      10
     ),
   };
 }
@@ -39,9 +39,8 @@ export function getHuggingFaceSettings(): {
 } {
   return {
     apiKey: process.env.HF_API_KEY,
-    baseUrl:
-      "https://api-inference.huggingface.co/models/openai/whisper-large-v3",
-    model: "openai/whisper-large-v3",
+    baseUrl: 'https://api-inference.huggingface.co/models/openai/whisper-large-v3',
+    model: 'openai/whisper-large-v3',
     supportsLanguage: true,
     supportsPrompt: true,
     maxFileSize: 25 * 1024 * 1024, // 25MB
@@ -50,6 +49,6 @@ export function getHuggingFaceSettings(): {
 }
 
 export function isHuggingFaceAvailable(): boolean {
-  const settings = getHuggingFaceSettings();
+  const _settings = getHuggingFaceSettings();
   return true; // HuggingFace works without API key
 }

@@ -1,522 +1,663 @@
 # API 参考文档
 
-## 概述
+## 📋 API 概览
 
-本文档详细描述了影子跟读项目的所有API接口，包括前端与后端的接口规范、请求响应格式、错误处理等。
+oumu.ai 提供了三个主要的 API 端点，用于音频转录、文本处理和进度跟踪。所有 API 都设计为无状态，支持流式处理，并具有完善的错误处理机制。
 
-## API 基础信息
+### API 端点
 
-### 基础URL
-```
-https://your-domain.com/api
-```
+1. **`POST /api/transcribe`** - 音频转录
+2. **`POST /api/postprocess`** - 文本后处理
+3. **`GET /api/progress/[fileId]`** - 进度跟踪
 
-### 认证方式
-所有API请求使用Bearer Token认证：
-```
-Authorization: Bearer <API_KEY>
-```
+### 认证和安全
 
-### 通用响应格式
+- **API 密钥**: 所有外部 API 密钥仅在服务器端使用
+- **CORS**: 严格配置的跨域访问控制
+- **速率限制**: 防止 API 滥用
+- **输入验证**: 使用 Zod 进行运行时验证
 
-**成功响应**:
+---
+
+## 🎵 `/api/transcribe` - 音频转录 API
+
+### 端点信息
+
+- **方法**: `POST`
+- **路径**: `/api/transcribe`
+- **认证**: 无（通过 API 密钥内部认证）
+- **内容类型**: `application/json`
+
+### 请求体
+
 ```typescript
-{
-  ok: true,
-  data: T,      // 具体数据
-  metadata?: {  // 元数据(可选)
-    total?: number,
-    page?: number,
-    pageSize?: number
-  }
+interface TranscribeRequest {
+  fileData: {
+    name: string;
+    size: number;
+    type: string;
+    arrayBuffer: {
+      type: 'Buffer';
+      data: number[];
+    };
+  };
+  language?: string; // 默认: 'auto'
+  chunks?: Array<{
+    startTime: number;
+    endTime: number;
+    duration: number;
+    arrayBuffer: {
+      type: 'Buffer';
+      data: number[];
+    };
+  }>;
+  chunkSeconds?: number; // 默认: 45
+  overlap?: number; // 默认: 0.2
 }
 ```
 
-**错误响应**:
-```typescript
-{
-  ok: false,
-  error: {
-    code: string,     // 错误代码
-    message: string,  // 错误描述
-    details?: any     // 错误详情(可选)
-  }
-}
-```
+### 请求示例
 
-### 通用错误代码
-
-| 错误码 | 描述 | HTTP状态码 |
-|--------|------|------------|
-| `invalid_request` | 请求格式错误 | 400 |
-| `unauthorized` | 未授权访问 | 401 |
-| `forbidden` | 权限不足 | 403 |
-| `not_found` | 资源不存在 | 404 |
-| `rate_limited` | 频率限制 | 429 |
-| `internal_error` | 服务器内部错误 | 500 |
-| `service_unavailable` | 服务不可用 | 503 |
-
-## 转录API
-
-### POST /api/transcribe
-
-音频转录接口，将音频文件发送到Groq Whisper进行语音转文字。
-
-#### 请求参数
-
-**Query Parameters**:
-```typescript
-interface QueryParams {
-  fileId: string;      // 文件ID (必需)
-  chunkIndex?: number; // 分片索引 (可选)
-  offsetSec?: number;  // 时间偏移(秒) (可选)
-}
-```
-
-**FormData 字段**:
-```typescript
-const formData = new FormData();
-formData.append('audio', blob); // 音频Blob (必需)
-formData.append('meta', JSON.stringify({
-  fileId: string,     // 文件ID
-  idx: number,        // 分片索引
-  start: number,      // 开始时间(秒)
-  end: number,        // 结束时间(秒)
-  totalChunks: number // 总分片数
-}));
-```
-
-#### 响应格式
-
-**成功响应**:
-```typescript
-{
-  ok: true,
-  chunkIndex: number, // 处理的分片索引
-  data: {
-    text: string,     // 完整转录文本
-    segments: Array<{
-      start: number;   // 开始时间(秒)
-      end: number;     // 结束时间(秒)
-      text: string;    // 分段文本
-      words?: Array<{  // 词级时间戳(可选)
-        start: number;
-        end: number;
-        text: string;
-      }>;
-    }>;
-  }
-}
-```
-
-**错误响应**:
-```typescript
-{
-  ok: false,
-  error: {
-    code: 'stt_429' | 'stt_5xx' | 'audio_too_large' | 'invalid_audio_format',
-    message: string,
-    details?: {
-      chunkIndex?: number,
-      fileId?: string,
-      retryAfter?: number
-    }
-  }
-}
-```
-
-#### 错误代码
-
-| 错误码 | 描述 | 处理建议 |
-|--------|------|----------|
-| `stt_429` | Groq API频率限制 | 等待重试，使用指数退避 |
-| `stt_5xx` | Groq服务错误 | 重试或联系管理员 |
-| `audio_too_large` | 音频文件过大 | 分片处理或压缩 |
-| `invalid_audio_format` | 不支持的音频格式 | 转换格式后重试 |
-
-#### 示例
-
-**请求**:
-```bash
-curl -X POST \
-  'https://your-domain.com/api/transcribe?fileId=123e4567-e89b-12d3-a456-426614174000' \
-  -H 'Authorization: Bearer your_api_key' \
-  -F 'audio=@audio.wav' \
-  -F 'meta={"fileId":"123e4567-e89b-12d3-a456-426614174000","idx":0,"start":0,"end":45,"totalChunks":3}'
-```
-
-**响应**:
 ```json
 {
-  "ok": true,
-  "chunkIndex": 0,
+  "fileData": {
+    "name": "sample.mp3",
+    "size": 1024000,
+    "type": "audio/mpeg",
+    "arrayBuffer": {
+      "type": "Buffer",
+      "data": [255, 216, 255, 224, 0, 16, 74, 70, 73, 70]
+    }
+  },
+  "language": "ja",
+  "chunks": [
+    {
+      "startTime": 0,
+      "endTime": 45,
+      "duration": 45,
+      "arrayBuffer": {
+        "type": "Buffer",
+        "data": [255, 216, 255, 224, 0, 16, 74, 70, 73, 70]
+      }
+    }
+  ],
+  "chunkSeconds": 45,
+  "overlap": 0.2
+}
+```
+
+### 响应
+
+#### 成功响应 (200)
+
+```typescript
+interface TranscribeResponse {
+  success: true;
+  data: {
+    text: string;
+    language?: string;
+    duration?: number;
+    segments?: Array<{
+      start: number;
+      end: number;
+      text: string;
+      wordTimestamps?: Array<{
+        word: string;
+        start: number;
+        end: number;
+      }>;
+    }>;
+    segmentCount: number;
+    processingTime: number;
+  };
+  metadata?: {
+    provider: 'huggingface';
+    model: string;
+    chunksProcessed: number;
+    totalDuration: number;
+  };
+}
+```
+
+#### 示例响应
+
+```json
+{
+  "success": true,
   "data": {
-    "text": "これはテスト音声です。",
+    "text": "こんにちは、これはテストです。",
+    "language": "ja",
+    "duration": 45.2,
     "segments": [
       {
-        "start": 0.12,
-        "end": 2.34,
-        "text": "これは",
-        "words": [
-          {"start": 0.12, "end": 0.45, "text": "これ"},
-          {"start": 0.46, "end": 0.67, "text": "は"}
+        "start": 0.0,
+        "end": 2.5,
+        "text": "こんにちは、",
+        "wordTimestamps": [
+          {
+            "word": "こんにちは",
+            "start": 0.0,
+            "end": 1.2
+          },
+          {
+            "word": "、",
+            "start": 1.2,
+            "end": 1.5
+          }
         ]
-      },
-      {
-        "start": 2.35,
-        "end": 4.56,
-        "text": "テスト音声です。"
       }
-    ]
+    ],
+    "segmentCount": 1,
+    "processingTime": 3.2
+  },
+  "metadata": {
+    "provider": "huggingface",
+    "model": "whisper-large-v3",
+    "chunksProcessed": 1,
+    "totalDuration": 45.2
   }
 }
 ```
 
-## 后处理API
-
-### POST /api/postprocess
-
-文本后处理接口，使用OpenRouter对转录文本进行规范化处理。
-
-#### 请求体
+#### 错误响应 (400/500)
 
 ```typescript
-{
-  fileId: string; // 文件ID (必需)
-  segments: Array<{ // 原始分段数据
+interface ErrorResponse {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+    timestamp: string;
+  };
+}
+```
+
+### 状态码
+
+| 状态码 | 描述 |
+|--------|------|
+| 200 | 成功 |
+| 400 | 请求参数错误 |
+| 413 | 文件太大 |
+| 429 | 请求频率限制 |
+| 500 | 服务器内部错误 |
+| 503 | 外部服务不可用 |
+
+### 处理流程
+
+```
+1. 接收音频文件数据
+2. 验证输入参数
+3. 处理音频分块（如果需要）
+4. 调用 HuggingFace Whisper API
+5. 生成单词级时间戳
+6. 返回转录结果
+```
+
+---
+
+## 📝 `/api/postprocess` - 文本后处理 API
+
+### 端点信息
+
+- **方法**: `POST`
+- **路径**: `/api/postprocess`
+- **认证**: 无（通过 API 密钥内部认证）
+- **内容类型**: `application/json`
+
+### 请求体
+
+```typescript
+interface PostProcessRequest {
+  fileId: number;
+  segments: Array<{
     start: number;
     end: number;
     text: string;
   }>;
-  glossary?: Array<{ // 术语库(可选)
-    src: string;     // 源术语
-    norm: string;    // 规范化术语
-  }>;
-  targetLangs: string[]; // 目标语言 ['zh', 'en'] (必需)
-  preferReading: string; // 优先读音语言 'ja' (必需)
+  targetLanguage?: string; // 默认: 'zh'
+  enableAnnotations?: boolean; // 默认: true
+  enableFurigana?: boolean; // 默认: true
+  enableTerminology?: boolean; // 默认: true
 }
 ```
 
-#### 响应格式
+### 请求示例
 
-**成功响应**:
-```typescript
+```json
 {
-  ok: true,
+  "fileId": 123,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 2.5,
+      "text": "こんにちは、これはテストです。"
+    }
+  ],
+  "targetLanguage": "zh",
+  "enableAnnotations": true,
+  "enableFurigana": true,
+  "enableTerminology": true
+}
+```
+
+### 响应
+
+#### 成功响应 (200)
+
+```typescript
+interface PostProcessResponse {
+  success: true;
   data: {
-    lang: string, // 主要语言代码
     segments: Array<{
-      id: string;           // 分段ID
-      start: number;        // 开始时间(秒)
-      end: number;          // 结束时间(秒)
-      text: string;         // 规范化文本
-      lang?: string;        // 分段语言代码(可选)
-      translation?: {       // 翻译结果(可选)
-        zh?: string;        // 中文翻译
-        en?: string;        // 英文翻译
-      };
-      reading?: string;     // 读音标注(可选)
-      terms?: Array<{       // 术语处理记录(可选)
-        src: string;        // 原始术语
-        norm: string;       // 规范化术语
+      start: number;
+      end: number;
+      text: string;
+      translation?: string;
+      annotations?: Array<{
+        type: 'grammar' | 'vocabulary' | 'pronunciation';
+        content: string;
+        explanation?: string;
       }>;
-      words?: Array<{       // 词级时间戳(可选)
-        start: number;
-        end: number;
+      furigana?: Array<{
         text: string;
+        reading: string;
       }>;
-    }>
-  }
-}
-```
-
-**错误响应**:
-```typescript
-{
-  ok: false,
-  error: {
-    code: 'openrouter_parse_error' | 'schema_validation_failed' | 'llm_timeout',
-    message: string,
-    details?: {
-      segmentIndex?: number,
-      validationErrors?: any[]
-    }
-  }
-}
-```
-
-#### 错误代码
-
-| 错误码 | 描述 | 处理建议 |
-|--------|------|----------|
-| `openrouter_parse_error` | OpenRouter解析失败 | 检查输入格式或重试 |
-| `schema_validation_failed` | 数据验证失败 | 检查请求体格式 |
-| `llm_timeout` | LLM处理超时 | 重试或减少处理量 |
-
-#### 示例
-
-**请求**:
-```bash
-curl -X POST \
-  'https://your-domain.com/api/postprocess' \
-  -H 'Authorization: Bearer your_api_key' \
-  -H 'Content-Type: application/json' \
-  -d '{
-    "fileId": "123e4567-e89b-12d3-a456-426614174000",
-    "segments": [
-      {"start": 0.12, "end": 2.34, "text": "これはテスト"},
-      {"start": 2.35, "end": 4.56, "text": "音声です"}
-    ],
-    "glossary": [
-      {"src": "テスト", "norm": "测试"}
-    ],
-    "targetLangs": ["zh"],
-    "preferReading": "ja"
-  }'
-```
-
-**响应**:
-```json
-{
-  "ok": true,
-  "data": {
-    "lang": "ja",
-    "segments": [
-      {
-        "id": "seg-1",
-        "start": 0.12,
-        "end": 2.34,
-        "text": "これはテストです。",
-        "lang": "ja",
-        "translation": {
-          "zh": "这是测试。"
-        },
-        "reading": "これは てすと です",
-        "terms": [
-          {"src": "テスト", "norm": "测试"}
-        ]
-      },
-      {
-        "id": "seg-2",
-        "start": 2.35,
-        "end": 4.56,
-        "text": "音声です。",
-        "lang": "ja",
-        "translation": {
-          "zh": "是音频。"
-        },
-        "reading": "おんせい です"
-      }
-    ]
-  }
-}
-```
-
-## 健康检查API
-
-### GET /api/health
-
-服务健康状态检查接口。
-
-#### 响应格式
-
-```typescript
-{
-  status: 'healthy' | 'degraded' | 'unhealthy',
-  timestamp: number,        // 时间戳
-  version: string,          // 服务版本
-  environment: string,      // 环境名称
-  uptime: number,           // 运行时间(秒)
-  services: {               // 依赖服务状态
-    database: {
-      status: 'healthy' | 'unhealthy',
-      latency?: number
-    };
-    groq: {
-      status: 'healthy' | 'unhealthy',
-      latency?: number
-    };
-    openrouter: {
-      status: 'healthy' | 'unhealthy',
-      latency?: number
-    };
+      terminologyMatches?: Array<{
+        term: string;
+        reading: string;
+        translation: string;
+        examples?: Array<{
+          sentence: string;
+          translation: string;
+        }>;
+      }>;
+    }>;
+    processingTime: number;
   };
-  metrics?: {               // 性能指标(可选)
-    memoryUsage: number,
-    cpuUsage: number,
-    activeRequests: number
-  }
+  metadata?: {
+    provider: 'openrouter';
+    model: string;
+    segmentsProcessed: number;
+    terminologyFound: number;
+  };
 }
 ```
 
-#### 示例
+#### 示例响应
 
-**请求**:
-```bash
-curl 'https://your-domain.com/api/health'
-```
-
-**响应**:
 ```json
 {
-  "status": "healthy",
-  "timestamp": 1726070400000,
-  "version": "1.0.0",
-  "environment": "production",
-  "uptime": 86400,
-  "services": {
-    "database": {
-      "status": "healthy",
-      "latency": 12
-    },
-    "groq": {
-      "status": "healthy",
-      "latency": 245
-    },
-    "openrouter": {
-      "status": "healthy",
-      "latency": 567
-    }
+  "success": true,
+  "data": {
+    "segments": [
+      {
+        "start": 0.0,
+        "end": 2.5,
+        "text": "こんにちは、これはテストです。",
+        "translation": "你好，这是一个测试。",
+        "annotations": [
+          {
+            "type": "grammar",
+            "content": "こんにちは - 问候语",
+            "explanation": "用于日常问候的礼貌用语"
+          }
+        ],
+        "furigana": [
+          {
+            "text": "こんにちは",
+            "reading": "こんにちは"
+          },
+          {
+            "text": "これは",
+            "reading": "これは"
+          }
+        ],
+        "terminologyMatches": [
+          {
+            "term": "こんにちは",
+            "reading": "こんにちは",
+            "translation": "你好",
+            "examples": [
+              {
+                "sentence": "こんにちは、元気ですか？",
+                "translation": "你好，你好吗？"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "processingTime": 1.8
   },
-  "metrics": {
-    "memoryUsage": 45.2,
-    "cpuUsage": 12.8,
-    "activeRequests": 3
+  "metadata": {
+    "provider": "openrouter",
+    model": "deepseek/deepseek-chat-v3.1:free",
+    "segmentsProcessed": 1,
+    "terminologyFound": 1
   }
 }
 ```
 
-## 文件管理API (前端)
+### 处理流程
 
-### 文件上传
-
-前端使用标准HTML5 File API进行文件上传，结合IndexedDB进行本地存储。
-
-#### 上传流程
-
-1. 用户选择或多个音频文件
-2. 前端验证文件格式和大小
-3. 生成文件元数据并存储到IndexedDB
-4. 可选：预计算波形数据
-5. 更新UI显示上传状态
-
-#### 文件验证
-
-```typescript
-function validateFile(file: File): ValidationResult {
-  const maxSize = 100 * 1024 * 1024; // 100MB
-  const allowedTypes = [
-    'audio/mpeg',    // MP3
-    'audio/wav',     // WAV
-    'audio/webm',    // WebM
-    'audio/ogg',     // OGG
-    'audio/m4a'      // M4A
-  ];
-
-  if (file.size > maxSize) {
-    return { valid: false, error: 'FILE_TOO_LARGE' };
-  }
-
-  if (!allowedTypes.includes(file.type)) {
-    return { valid: false, error: 'INVALID_FILE_TYPE' };
-  }
-
-  return { valid: true };
-}
 ```
-
-### 文件读取和播放
-
-使用Web Audio API进行音频解码和播放控制。
-
-```typescript
-async function playAudio(blob: Blob): Promise<HTMLAudioElement> {
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  
-  audio.addEventListener('loadedmetadata', () => {
-    console.log('Duration:', audio.duration);
-  });
-  
-  audio.addEventListener('timeupdate', () => {
-    // 更新播放进度和字幕同步
-    updatePlaybackState(audio.currentTime);
-  });
-  
-  return audio;
-}
+1. 接收转录文本段
+2. 从数据库获取术语表
+3. 调用 OpenRouter LLM 进行翻译和注释
+4. 生成振假名
+5. 匹配术语
+6. 返回处理结果
 ```
-
-## 速率限制
-
-### API速率限制
-
-- **转录API**: 每分钟最多10次请求
-- **后处理API**: 每分钟最多5次请求
-- **健康检查**: 无限制
-
-### 并发限制
-
-- 同时处理的分片数量: 3个
-- 同时进行的后处理任务: 2个
-
-### 重试策略
-
-- 首次失败: 立即重试
-- 第二次失败: 2秒后重试
-- 第三次失败: 4秒后重试
-- 最大重试次数: 3次
-
-## 数据格式说明
-
-### 时间格式
-所有时间值均以秒为单位，精确到毫秒（3位小数）。
-
-### 语言代码
-使用ISO 639-1语言代码：
-- `ja`: 日语
-- `zh`: 中文
-- `en`: 英语
-- `ko`: 韩语
-
-### 音频格式支持
-- MP3 (audio/mpeg)
-- WAV (audio/wav) 
-- WebM (audio/webm)
-- OGG (audio/ogg)
-- M4A (audio/m4a)
-
-## 版本历史
-
-### v1.0.0 (当前版本)
-- 初始API版本
-- 支持音频转录和后处理
-- 基本错误处理和速率限制
-
-### v1.1.0 (计划中)
-- 批量处理支持
-- 增强的监控指标
-- 更详细的错误信息
-
-## 故障排除
-
-### 常见问题
-
-1. **429错误**: 减少请求频率或增加分片大小
-2. **音频格式错误**: 检查文件格式是否在支持列表中
-3. **网络超时**: 检查网络连接或增加超时时间
-4. **内存不足**: 减少并发处理数量
-
-### 调试模式
-
-设置环境变量 `DEBUG=true` 启用详细日志：
-```bash
-export DEBUG=true
-npm run dev
-```
-
-日志将包含详细的请求响应信息和错误堆栈。
 
 ---
 
-本文档持续更新，最新版本请参考项目文档目录。
+## 📊 `/api/progress/[fileId]` - 进度跟踪 API
+
+### 端点信息
+
+- **方法**: `GET`
+- **路径**: `/api/progress/[fileId]`
+- **认证**: 无
+- **参数**: `fileId` (路径参数)
+
+### 响应
+
+#### 成功响应 (200)
+
+```typescript
+interface ProgressResponse {
+  success: true;
+  data: {
+    fileId: number;
+    status: 'pending' | 'processing' | 'completed' | 'failed';
+    progress: number; // 0-100
+    message?: string;
+    error?: string;
+    estimatedTimeRemaining?: number;
+    processedChunks?: number;
+    totalChunks?: number;
+    lastUpdate: string;
+  };
+}
+```
+
+#### 示例响应
+
+```json
+{
+  "success": true,
+  "data": {
+    "fileId": 123,
+    "status": "processing",
+    "progress": 65,
+    "message": "正在处理音频分块",
+    "estimatedTimeRemaining": 120,
+    "processedChunks": 13,
+    "totalChunks": 20,
+    "lastUpdate": "2024-09-22T10:30:00Z"
+  }
+}
+```
+
+#### 错误响应 (404)
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "FILE_NOT_FOUND",
+    "message": "File not found",
+    "timestamp": "2024-09-22T10:30:00Z"
+  }
+}
+```
+
+### 状态说明
+
+| 状态 | 描述 |
+|------|------|
+| `pending` | 等待处理 |
+| `processing` | 正在处理 |
+| `completed` | 处理完成 |
+| `failed` | 处理失败 |
+
+---
+
+## 🛡️ 错误处理
+
+### 统一错误格式
+
+```typescript
+interface ApiError {
+  success: false;
+  error: {
+    code: string;
+    message: string;
+    details?: any;
+    timestamp: string;
+    requestId?: string;
+  };
+}
+```
+
+### 错误代码
+
+| 代码 | 描述 | HTTP 状态码 |
+|------|------|-------------|
+| `VALIDATION_ERROR` | 请求参数验证失败 | 400 |
+| `FILE_TOO_LARGE` | 文件大小超过限制 | 413 |
+| `UNSUPPORTED_FILE_TYPE` | 不支持的文件类型 | 400 |
+| `RATE_LIMIT_EXCEEDED` | 请求频率限制 | 429 |
+| `FILE_NOT_FOUND` | 文件不存在 | 404 |
+| `TRANSCRIPTION_FAILED` | 转录失败 | 500 |
+| `EXTERNAL_API_ERROR` | 外部 API 错误 | 502 |
+| `INTERNAL_ERROR` | 服务器内部错误 | 500 |
+
+### 重试策略
+
+#### 指数退避重试
+
+```typescript
+const retryWithBackoff = async (
+  fn: () => Promise<any>,
+  maxRetries: number = 3,
+  initialDelay: number = 1000
+) => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      
+      const delay = initialDelay * Math.pow(2, i);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+};
+```
+
+#### 重试条件
+
+- 网络错误 (5xx, 网络超时)
+- 外部 API 限流 (429)
+- 临时性服务错误 (503)
+
+---
+
+## 🔄 客户端集成
+
+### TypeScript 客户端示例
+
+```typescript
+// lib/api-client.ts
+class ApiClient {
+  private baseUrl: string;
+
+  constructor(baseUrl: string = '/api') {
+    this.baseUrl = baseUrl;
+  }
+
+  async transcribe(data: TranscribeRequest): Promise<TranscribeResponse> {
+    const response = await fetch(`${this.baseUrl}/transcribe`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async postProcess(data: PostProcessRequest): Promise<PostProcessResponse> {
+    const response = await fetch(`${this.baseUrl}/postprocess`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getProgress(fileId: number): Promise<ProgressResponse> {
+    const response = await fetch(`${this.baseUrl}/progress/${fileId}`);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+}
+
+export const apiClient = new ApiClient();
+```
+
+### React Hook 集成
+
+```typescript
+// hooks/useTranscription.ts
+export const useTranscription = (fileId: number) => {
+  const [progress, setProgress] = useState<ProgressData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const transcribe = useCallback(async (data: TranscribeRequest) => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const result = await apiClient.transcribe(data);
+      return result;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  const pollProgress = useCallback(async () => {
+    try {
+      const response = await apiClient.getProgress(fileId);
+      setProgress(response.data);
+      
+      if (response.data.status === 'processing') {
+        // 继续轮询
+        setTimeout(pollProgress, 2000);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
+  }, [fileId]);
+
+  return { transcribe, progress, error, isLoading, pollProgress };
+};
+```
+
+---
+
+## 📈 性能优化
+
+### 请求优化
+
+1. **分块处理**: 大文件分成 45 秒块处理
+2. **并发控制**: 最多 3 个并发请求
+3. **流式处理**: 支持流式音频处理
+4. **缓存策略**: 结果缓存和去重
+
+### 监控指标
+
+```typescript
+interface ApiMetrics {
+  requestCount: number;
+  averageResponseTime: number;
+  errorRate: number;
+  externalApiLatency: {
+    huggingface: number;
+    openrouter: number;
+  };
+  concurrentRequests: number;
+}
+```
+
+---
+
+## 🔒 安全考虑
+
+### 输入验证
+
+```typescript
+// 使用 Zod 进行运行时验证
+const transcribeSchema = z.object({
+  fileData: z.object({
+    name: z.string(),
+    size: z.number().max(100 * 1024 * 1024), // 100MB
+    type: z.string().regex(/^audio\//),
+    arrayBuffer: z.object({
+      type: z.literal('Buffer'),
+      data: z.array(z.number()),
+    }),
+  }),
+  language: z.string().optional(),
+  chunkSeconds: z.number().min(1).max(300).optional(),
+  overlap: z.number().min(0).max(1).optional(),
+});
+```
+
+### 安全头部
+
+```typescript
+// 设置安全 HTTP 头部
+export async function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+  
+  // 安全头部
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+  
+  // CORS 头部
+  response.headers.set('Access-Control-Allow-Origin', process.env.ALLOWED_ORIGINS || '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  return response;
+}
+```
+
+---
+
+*API 参考文档 | 版本: 1.0 | 最后更新: 2024年9月22日*

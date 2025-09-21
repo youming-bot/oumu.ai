@@ -1,136 +1,146 @@
-# Shadowing Learning Documentation
+# Shadowing Learning 文档中心
 
-Welcome to the comprehensive documentation for the Shadowing Learning project. This documentation is organized to serve different user personas and needs.
+欢迎来到 oumu.ai (Shadowing Learning) 项目的综合文档中心。本文档为不同用户角色和需求提供全面的指导。
 
-## 📚 Documentation Structure
+## 📚 文档结构
 
-### 🚀 Getting Started
-- **For new users and developers**
-- [Quick Start Guide](getting-started/README.md)
-- [Installation](getting-started/installation.md)
-- [Configuration](getting-started/configuration.md)
-- [First Steps](getting-started/first-steps.md)
+### 🚀 快速开始
+- **适合新用户和开发者**
+- [快速入门指南](getting-started/README.md)
+- [安装指南](getting-started/installation.md)
+- [配置说明](getting-started/configuration.md)
+- [首次使用](getting-started/first-steps.md)
 
-### 👥 User Guide
-- **For end users of the application**
-- [Features Overview](user-guide/features.md)
-- [Common Workflows](user-guide/workflows.md)
-- [Troubleshooting](user-guide/troubleshooting.md)
+### 👥 用户指南
+- **适合应用程序的最终用户**
+- [功能概览](user-guide/features.md)
+- [常用工作流](user-guide/workflows.md)
+- [故障排除](user-guide/troubleshooting.md)
 
-### 🏗️ Architecture
-- **For system architects and technical stakeholders**
-- [System Architecture](architecture/system-design.md)
-- [Component Architecture](architecture/components.md)
+### 🏗️ 架构设计
+- **适合系统架构师和技术利益相关者**
+- [系统架构](architecture/system-design.md)
+- [组件架构](architecture/components.md)
+- [代码审查报告](code-review/README.md)
+- [问题摘要](code-review/issues-summary.md)
 
-### 💻 Development
-- **For developers contributing to the project**
-- [Development Setup](development/setup.md)
-- [Coding Standards](development/coding-standards.md)
-- [Testing Strategy](development/testing.md)
-- [Error Handling](development/error-handling.md)
-- [Deployment Guide](development/deployment.md)
+### 💻 开发指南
+- **适合参与项目的开发者**
+- [开发环境设置](development/setup.md)
+- [编码标准](development/coding-standards.md)
+- [测试策略](development/testing.md)
+- [错误处理](development/error-handling.md)
+- [部署指南](development/deployment.md)
+- [完整开发指南](development/development-guide.md)
 
-### 🔌 API Reference
-- **For developers integrating with the system**
-- [API Overview](api-reference/README.md)
+### 🔌 API 参考
+- **适合与系统集成的人员**
+- [API 概览](api-reference/README.md)
 
-### 🔄 Migrations
-- **For developers managing system changes**
-- [Migration History](migrations/README.md)
-- [Biome.js Migration](migrations/biome-migration.md)
-- [Database Migrations](migrations/database-migrations.md)
+### 🔄 迁移历史
+- **适合管理系统变更的人员**
+- [迁移历史](migrations/README.md)
+- [Biome.js 迁移](migrations/biome-migration.md)
+- [数据库迁移](migrations/database-migrations.md)
 
-### 🚀 Deployment
-- **For DevOps and deployment engineers**
-- [Deployment Guide](development/deployment.md)
+### 📊 项目管理
+- **适合项目经理和团队负责人**
+- [任务跟踪](project-management/task-tracking.md)
+- [开发计划](project-management/development-plan.md)
+- [实施计划](project-management/implementation-plan.md)
+- [活跃计划](project-management/active-plan.md)
 
-### 🔒 Security
-- **For security professionals and developers**
-- [Security Overview](security/README.md)
+### 📖 附录
+- **参考材料和额外信息**
+- [术语表](appendices/glossary.md)
+- [贡献指南](appendices/contributing.md)
 
-### 📊 Project Management
-- **For project managers and team leads**
-- [Task Tracking](project-management/task-tracking.md)
-- [Development Plan](project-management/development-plan.md)
-- [Implementation Plan](project-management/implementation-plan.md)
-- [Active Plan](project-management/active-plan.md)
+## 🔍 快速导航
 
-### 📖 Appendices
-- **Reference materials and additional information**
-- [Glossary](appendices/glossary.md)
-- [Contributing Guidelines](appendices/contributing.md)
+### 项目新手？
+从 [快速入门](getting-started/README.md) 开始，获取项目概览和设置说明。
 
-## 🔍 Quick Navigation
+### 想使用应用程序？
+查看 [用户指南](user-guide/README.md) 了解功能文档和使用说明。
 
-### New to the Project?
-Start with [Getting Started](getting-started/README.md) for a quick overview and setup instructions.
+### 需要了解系统？
+查看 [架构设计](architecture/README.md) 了解系统设计和技术细节。
 
-### Want to Use the Application?
-Check the [User Guide](user-guide/README.md) for feature documentation and usage instructions.
+### 计划贡献？
+阅读 [开发指南](development/README.md) 和 [贡献指南](appendices/contributing.md)。
 
-### Need to Understand the System?
-Review the [Architecture](architecture/README.md) section for system design and technical details.
+### 需要部署？
+按照 [部署指南](development/deployment.md) 进行生产环境设置。
 
-### Planning to Contribute?
-Read the [Development Guide](development/README.md) and [Contributing Guidelines](appendices/contributing.md).
+### 遇到问题？
+查看 [故障排除](user-guide/troubleshooting.md) 了解常见问题和解决方案。
 
-### Need to Deploy?
-Follow the [Deployment Guide](development/deployment.md) for production setup.
+## 🛠️ 项目概览
 
-### Having Issues?
-Check the [Troubleshooting](user-guide/troubleshooting.md) section for common problems and solutions.
+Shadowing Learning 项目是一个基于网络的语言学习应用程序，通过音频转录和文本处理进行语言练习。使用 Next.js 15、React 19、TypeScript 和 shadcn/ui 构建，提供：
 
-## 🛠️ Project Overview
+- **音频处理**: 基于 Groq Whisper 的分块音频转录
+- **文本处理**: OpenRouter 支持的 AI 文本标准化
+- **交互式学习**: 同步字幕和 A-B 循环功能
+- **现代 UI**: 响应式设计，使用 shadcn/ui 组件
+- **离线支持**: 使用 IndexedDB 进行本地数据持久化
 
-The Shadowing Learning project is a web-based application for language practice through audio transcription and text processing. Built with Next.js 15, React 19, TypeScript, and shadcn/ui, it provides:
+## 📋 文档结构统计
 
-- **Audio Processing**: Chunk-based audio transcription with Groq Whisper
-- **Text Processing**: AI-powered text normalization with OpenRouter
-- **Interactive Learning**: Synchronized subtitles with A-B loop functionality
-- **Modern UI**: Responsive design with shadcn/ui components
-- **Offline Support**: IndexedDB for local data persistence
+### 完整文件组织
+文档按逻辑部分组织，提供全面覆盖：
 
-## 📋 Documentation Structure
+#### 核心文档 (35+ 文件)
+- **快速入门** (4 文件): 设置、安装、配置、首次使用
+- **用户指南** (3 文件): 功能、工作流、故障排除
+- **架构设计** (4 文件): 系统设计、组件、代码审查
+- **开发指南** (6 文件): 设置、编码标准、测试、错误处理、部署
+- **API 参考** (1 文件): API 文档概览
+- **迁移历史** (3 文件): Biome.js、数据库、迁移历史
+- **项目管理** (4 文件): 任务跟踪、开发计划、实施
+- **附录** (2 文件): 术语表、贡献指南
 
-### Complete File Organization
-The documentation is organized into logical sections with comprehensive coverage:
+### 文档特性
+- **用户为中心**: 按用户角色和需求组织
+- **全面性**: 涵盖从设置到部署的所有方面
+- **实用性**: 包含真实示例和故障排除
+- **可维护性**: 清晰的结构便于更新
+- **可访问性**: 为不同技术水平编写
 
-#### Core Documentation (20+ files)
-- **Getting Started** (4 files): Setup, installation, configuration, first steps
-- **User Guide** (3 files): Features, workflows, troubleshooting
-- **Architecture** (3 files): System design, components, technical overview
-- **Development** (5 files): Setup, coding standards, testing, error handling, deployment
-- **API Reference** (1 file): API documentation overview
-- **Migrations** (3 files): Biome.js, database, migration history
-- **Project Management** (4 files): Task tracking, development plans, implementation
-- **Appendices** (2 files): Glossary, contributing guidelines
+## 📞 支持
 
-### Documentation Features
-- **User-Centric**: Organized by user roles and needs
-- **Comprehensive**: Covers all aspects from setup to deployment
-- **Practical**: Includes real examples and troubleshooting
-- **Maintainable**: Clear structure for easy updates
-- **Accessible**: Written for different technical levels
+如需技术问题或支持：
+- 查看 [故障排除](user-guide/troubleshooting.md) 部分
+- 查看 [GitHub Issues](https://github.com/your-repo/shadowing-learning/issues)
+- 在 [GitHub Discussions](https://github.com/your-repo/shadowing-learning/discussions) 中提问
+- 联系开发团队
 
-## 📞 Support
+## 📄 许可证
 
-For technical questions or support:
-- Check the [Troubleshooting](user-guide/troubleshooting.md) section
-- Review [GitHub Issues](https://github.com/your-repo/shadowing-learning/issues)
-- Ask questions in [GitHub Discussions](https://github.com/your-repo/shadowing-learning/discussions)
-- Contact the development team
+本项目采用 MIT 许可证。查看项目仓库了解详情。
 
-## 📄 License
+## 🔄 文档更新
 
-This project is licensed under the MIT License. See the project repository for details.
+本文档持续改进。如需最新更改：
+- 查看 [提交历史](https://github.com/your-repo/shadowing-learning/commits/main/docs)
+- 查看 [GitHub Issues](https://github.com/your-repo/shadowing-learning/issues) 了解文档请求
+- 提交 [pull requests](https://github.com/your-repo/shadowing-learning/pulls) 进行改进
 
-## 🔄 Documentation Updates
+## 🎯 主要改进亮点
 
-This documentation is continuously improved. For recent changes:
-- Check the [commit history](https://github.com/your-repo/shadowing-learning/commits/main/docs)
-- Review [GitHub Issues](https://github.com/your-repo/shadowing-learning/issues) for documentation requests
-- Submit [pull requests](https://github.com/your-repo/shadowing-learning/pulls) for improvements
+### 新增文档 (基于代码审查)
+- **代码审查报告**: 深度分析项目现状和改进建议
+- **问题摘要**: 详细的问题列表和修复方案
+- **架构设计**: 完整的系统架构和组件设计文档
+- **API 参考**: 全面的 API 文档和集成指南
+- **部署指南**: 多平台部署策略和最佳实践
+
+### 文档质量提升
+- **统一标准**: 使用 Biome.js 进行格式化和代码质量检查
+- **中文优先**: 所有文档都提供中文版本
+- **实用导向**: 强调实际应用和问题解决
+- **维护友好**: 清晰的结构和版本控制支持
 
 ---
 
-*Last updated: September 2024* | *Documentation reorganized and expanded*
+*最后更新: 2024年9月22日 | 文档重新组织和扩展完成*
