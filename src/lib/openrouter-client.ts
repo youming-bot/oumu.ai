@@ -1,8 +1,8 @@
-import type { Term } from '@/types/database';
+import type { Term } from "@/types/database";
 
-const BASE_URL = process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1';
+const BASE_URL = process.env.OPENROUTER_BASE_URL;
 const API_KEY = process.env.OPENROUTER_API_KEY;
-const MODEL = process.env.OPENROUTER_MODEL || 'deepseek/deepseek-chat-v3.1:free';
+const MODEL = process.env.OPENROUTER_MODEL;
 
 export interface PostProcessRequest {
   text: string;
@@ -46,25 +46,25 @@ export class OpenRouterClientError extends Error {
   constructor(
     message: string,
     public readonly statusCode?: number,
-    public readonly response?: unknown
+    public readonly response?: unknown,
   ) {
     super(message);
-    this.name = 'OpenRouterClientError';
+    this.name = "OpenRouterClientError";
   }
 }
 
 export class OpenRouterRateLimitError extends OpenRouterClientError {
   constructor(
     message: string,
-    public readonly retryAfter?: number
+    public readonly retryAfter?: number,
   ) {
     super(message, 429);
-    this.name = 'OpenRouterRateLimitError';
+    this.name = "OpenRouterRateLimitError";
   }
 }
 
 const DEFAULT_OPTIONS: PostProcessOptions = {
-  targetLanguage: 'en',
+  targetLanguage: "en",
   enableAnnotations: true,
   enableFurigana: true,
   enableTerminology: true,
@@ -77,10 +77,10 @@ const DEFAULT_OPTIONS: PostProcessOptions = {
 async function makeRequest(
   endpoint: string,
   options: RequestInit,
-  retries: number = 3
+  retries: number = 3,
 ): Promise<Response> {
   if (!API_KEY) {
-    throw new OpenRouterClientError('OpenRouter API key not configured');
+    throw new OpenRouterClientError("OpenRouter API key not configured");
   }
 
   const controller = new AbortController();
@@ -91,10 +91,13 @@ async function makeRequest(
       ...options,
       signal: controller.signal,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         authorization: `Bearer ${API_KEY}`,
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Shadowing Learning',
+        "HTTP-Referer":
+          process.env.NODE_ENV === "production"
+            ? process.env.NEXT_PUBLIC_APP_URL || "https://your-domain.com"
+            : "http://localhost:3000",
+        "X-Title": "Shadowing Learning",
         ...options.headers,
       },
     });
@@ -103,11 +106,11 @@ async function makeRequest(
 
     if (!response.ok) {
       if (response.status === 429) {
-        throw new OpenRouterRateLimitError('Rate limit exceeded');
+        throw new OpenRouterRateLimitError("Rate limit exceeded");
       }
       throw new OpenRouterClientError(
         `HTTP ${response.status}: ${response.statusText}`,
-        response.status
+        response.status,
       );
     }
 
@@ -121,8 +124,8 @@ async function makeRequest(
       return makeRequest(endpoint, options, retries - 1);
     }
 
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new OpenRouterClientError('Request timeout', 408);
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new OpenRouterClientError("Request timeout", 408);
     }
 
     throw error;
@@ -139,7 +142,7 @@ function buildPrompt(
   enableAnnotations: boolean = true,
   enableFurigana: boolean = true,
   enableTerminology: boolean = true,
-  customTerminology?: Term[]
+  customTerminology?: Term[],
 ): string {
   let basePrompt = `You are a professional language teacher specializing in Japanese language learning and shadowing practice.
 
@@ -150,14 +153,14 @@ ${text}
 
 Requirements:
 1. Normalize the text (remove filler words, fix grammar, etc.)
-2. ${targetLanguage ? `Provide translation to ${targetLanguage}` : 'Keep original language'}`;
+2. ${targetLanguage ? `Provide translation to ${targetLanguage}` : "Keep original language"}`;
 
   if (enableAnnotations) {
     basePrompt += `
 3. Add grammatical and cultural annotations`;
   }
 
-  if (enableFurigana && sourceLanguage === 'ja') {
+  if (enableFurigana && sourceLanguage === "ja") {
     basePrompt += `
 4. Include furigana for kanji`;
   }
@@ -171,7 +174,7 @@ Requirements:
     basePrompt += `
 
 Custom Terminology (use these translations):
-${customTerminology.map((term) => `- ${term.word}: ${term.reading} (${term.meaning})`).join('\n')}`;
+${customTerminology.map((term) => `- ${term.word}: ${term.reading} (${term.meaning})`).join("\n")}`;
   }
 
   basePrompt += `
@@ -195,7 +198,7 @@ function parseResponse(responseText: string): PostProcessResponse {
   try {
     const response = JSON.parse(responseText);
     return {
-      normalizedText: response.normalizedText || response.text || '',
+      normalizedText: response.normalizedText || response.text || "",
       translation: response.translation,
       annotations: response.annotations || [],
       furigana: response.furigana,
@@ -203,7 +206,11 @@ function parseResponse(responseText: string): PostProcessResponse {
       processingTime: response.processingTime || 0,
     };
   } catch (error) {
-    throw new OpenRouterClientError('Failed to parse OpenRouter response', 500, error);
+    throw new OpenRouterClientError(
+      "Failed to parse OpenRouter response",
+      500,
+      error,
+    );
   }
 }
 
@@ -213,7 +220,7 @@ function parseResponse(responseText: string): PostProcessResponse {
 export async function postProcessText(
   text: string,
   sourceLanguage: string,
-  options: PostProcessOptions = {}
+  options: PostProcessOptions = {},
 ): Promise<PostProcessResponse> {
   const finalOptions = { ...DEFAULT_OPTIONS, ...options };
   const startTime = Date.now();
@@ -224,21 +231,21 @@ export async function postProcessText(
     finalOptions.targetLanguage,
     finalOptions.enableAnnotations,
     finalOptions.enableFurigana,
-    finalOptions.enableTerminology
+    finalOptions.enableTerminology,
   );
 
-  const response = await makeRequest('/chat/completions', {
-    method: 'POST',
+  const response = await makeRequest("/chat/completions", {
+    method: "POST",
     body: JSON.stringify({
       model: MODEL,
       messages: [
         {
-          role: 'system',
+          role: "system",
           content:
-            'You are a professional language teacher specializing in Japanese language learning and shadowing practice. Provide accurate, educational responses that help learners understand and practice the language.',
+            "You are a professional language teacher specializing in Japanese language learning and shadowing practice. Provide accurate, educational responses that help learners understand and practice the language.",
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
@@ -248,7 +255,7 @@ export async function postProcessText(
   });
 
   const result = await response.json();
-  const responseText = result.choices?.[0]?.message?.content || '';
+  const responseText = result.choices?.[0]?.message?.content || "";
 
   const processedResponse = parseResponse(responseText);
   processedResponse.processingTime = Date.now() - startTime;
@@ -262,7 +269,7 @@ export async function postProcessText(
 export async function postProcessSegments(
   segments: Array<{ text: string; start: number; end: number }>,
   sourceLanguage: string,
-  options: PostProcessOptions = {}
+  options: PostProcessOptions = {},
 ): Promise<PostProcessSegment[]> {
   const finalOptions = { ...DEFAULT_OPTIONS, ...options };
 
@@ -274,7 +281,11 @@ export async function postProcessSegments(
     const batch = segments.slice(i, i + batchSize);
     const batchResults = await Promise.all(
       batch.map(async (segment) => {
-        const response = await postProcessText(segment.text, sourceLanguage, finalOptions);
+        const response = await postProcessText(
+          segment.text,
+          sourceLanguage,
+          finalOptions,
+        );
         return {
           originalText: segment.text,
           normalizedText: response.normalizedText,
@@ -284,7 +295,7 @@ export async function postProcessSegments(
           start: segment.start,
           end: segment.end,
         };
-      })
+      }),
     );
     results.push(...batchResults);
   }
@@ -299,7 +310,7 @@ export async function postProcessWithTerminology(
   text: string,
   sourceLanguage: string,
   terminology: Term[],
-  options: PostProcessOptions = {}
+  options: PostProcessOptions = {},
 ): Promise<PostProcessResponse> {
   const finalOptions = { ...DEFAULT_OPTIONS, ...options };
   const startTime = Date.now();
@@ -311,21 +322,21 @@ export async function postProcessWithTerminology(
     finalOptions.enableAnnotations,
     finalOptions.enableFurigana,
     finalOptions.enableTerminology,
-    terminology
+    terminology,
   );
 
-  const response = await makeRequest('/chat/completions', {
-    method: 'POST',
+  const response = await makeRequest("/chat/completions", {
+    method: "POST",
     body: JSON.stringify({
       model: MODEL,
       messages: [
         {
-          role: 'system',
+          role: "system",
           content:
-            'You are a professional language teacher specializing in Japanese language learning and shadowing practice. Use the provided terminology consistently in your translations and explanations.',
+            "You are a professional language teacher specializing in Japanese language learning and shadowing practice. Use the provided terminology consistently in your translations and explanations.",
         },
         {
-          role: 'user',
+          role: "user",
           content: prompt,
         },
       ],
@@ -335,7 +346,7 @@ export async function postProcessWithTerminology(
   });
 
   const result = await response.json();
-  const responseText = result.choices?.[0]?.message?.content || '';
+  const responseText = result.choices?.[0]?.message?.content || "";
 
   const processedResponse = parseResponse(responseText);
   processedResponse.processingTime = Date.now() - startTime;
@@ -353,15 +364,15 @@ export function validateConfiguration(): {
   const errors: string[] = [];
 
   if (!API_KEY) {
-    errors.push('OpenRouter API key is not configured');
+    errors.push("OpenRouter API key is not configured");
   }
 
   if (!BASE_URL) {
-    errors.push('OpenRouter base URL is not configured');
+    errors.push("OpenRouter base URL is not configured");
   }
 
   if (!MODEL) {
-    errors.push('OpenRouter model is not configured');
+    errors.push("OpenRouter model is not configured");
   }
 
   return {
@@ -380,19 +391,20 @@ export function getSupportedModels(): Array<{
 }> {
   return [
     {
-      id: 'deepseek/deepseek-chat-v3.1:free',
-      name: 'DeepSeek Chat v3.1',
-      description: 'Free tier model with good multilingual capabilities',
+      id: "deepseek/deepseek-chat-v3.1:free",
+      name: "DeepSeek Chat v3.1",
+      description: "Free tier model with good multilingual capabilities",
     },
     {
-      id: 'anthropic/claude-3.5-sonnet',
-      name: 'Claude 3.5 Sonnet',
-      description: 'High-performance model with excellent language understanding',
+      id: "anthropic/claude-3.5-sonnet",
+      name: "Claude 3.5 Sonnet",
+      description:
+        "High-performance model with excellent language understanding",
     },
     {
-      id: 'openai/gpt-4o',
-      name: 'GPT-4o',
-      description: 'Latest OpenAI model with multimodal capabilities',
+      id: "openai/gpt-4o",
+      name: "GPT-4o",
+      description: "Latest OpenAI model with multimodal capabilities",
     },
   ];
 }

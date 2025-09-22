@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import { useCallback, useMemo } from 'react';
-import { toast } from 'sonner';
-import AudioPlayer from '@/components/audio-player';
-import ExportImport from '@/components/export-import';
-import FileList from '@/components/file-list';
-import FileUpload from '@/components/file-upload';
-import Layout from '@/components/layout';
-import SubtitleDisplay from '@/components/subtitle-display';
-import TerminologyGlossary from '@/components/terminology-glossary';
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner";
+import AudioPlayer from "@/components/audio-player";
+import ExportImport from "@/components/export-import";
+import FileList from "@/components/file-list";
+import FileUpload from "@/components/file-upload";
+import Layout from "@/components/layout";
+import SubtitleDisplay from "@/components/subtitle-display";
+import TerminologyGlossary from "@/components/terminology-glossary";
 // Import custom hooks for state management
 import {
   useAppState,
@@ -17,12 +17,13 @@ import {
   useTerms,
   useTranscriptionProgress,
   useTranscripts,
-} from '@/hooks';
-import { useMemoryCleanup } from '@/hooks/useMemoryCleanup';
-import { handleAndShowError } from '@/lib/error-handler';
-import { FileUploadUtils } from '@/lib/file-upload';
-import { type TranscriptionProgress, TranscriptionService } from '@/lib/transcription-service';
-import type { FileRow } from '@/types/database';
+} from "@/hooks";
+import { useMemoryCleanup } from "@/hooks/useMemoryCleanup";
+import { useTranscriptionManager } from "@/hooks/useTranscriptionManager";
+import { handleAndShowError } from "@/lib/error-handler";
+import { FileUploadUtils } from "@/lib/file-upload";
+import { TranscriptionService } from "@/lib/transcription-service";
+import type { FileRow } from "@/types/database";
 
 export default function Home() {
   // Use memory cleanup hook for global resource management
@@ -49,9 +50,18 @@ export default function Home() {
     handleSeek,
     clearAudio,
   } = useAudioPlayer();
-  const { transcriptionProgress } = useTranscriptionProgress(files, transcripts);
-  const { viewState, fileUploadState, setViewState, updateViewState, updateFileUploadState } =
-    useAppState();
+  const transcriptionManager = useTranscriptionManager();
+  const { transcriptionProgress } = useTranscriptionProgress(
+    files,
+    transcripts,
+  );
+  const {
+    viewState,
+    fileUploadState,
+    setViewState,
+    updateViewState,
+    updateFileUploadState,
+  } = useAppState();
 
   const handleFilesSelected = useCallback(
     async (selectedFiles: File[]) => {
@@ -71,25 +81,30 @@ export default function Home() {
 
             // Update progress
             updateFileUploadState({
-              uploadProgress: Math.round(((index + 1) / selectedFiles.length) * 100),
+              uploadProgress: Math.round(
+                ((index + 1) / selectedFiles.length) * 100,
+              ),
             });
 
-            TranscriptionService.transcribeAudio(fileId, {
-              language: 'ja',
-              onProgress: (_progress: TranscriptionProgress) => {
-                // Progress callback - intentionally empty for now
-              },
-            })
-              .then((_transcriptResult) => {
-                toast.success(`Transcription completed for ${file.name}`);
-              })
-              .catch((transcriptionError) => {
-                toast.error(`Transcription failed for ${file.name}: ${transcriptionError.message}`);
-              });
+            // Queue transcription
+            transcriptionManager.queueTranscription({
+              id: fileId,
+              name: file.name,
+              size: file.size,
+              type: file.type,
+              blob: new Blob([file], { type: file.type }),
+              duration: undefined,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
 
             return { success: true, fileId };
           } catch (error) {
-            handleAndShowError(error, 'processFile', `Failed to process ${file.name}`);
+            handleAndShowError(
+              error,
+              "processFile",
+              `Failed to process ${file.name}`,
+            );
             return { success: false, error, fileName: file.name };
           }
         });
@@ -112,7 +127,7 @@ export default function Home() {
           selectedFiles: [],
         });
       } catch (error) {
-        handleAndShowError(error, 'fileUpload');
+        handleAndShowError(error, "fileUpload");
         updateFileUploadState({
           isUploading: false,
           uploadProgress: 0,
@@ -120,7 +135,11 @@ export default function Home() {
         });
       }
     },
-    [updateFileUploadState, loadFiles]
+    [
+      updateFileUploadState,
+      loadFiles, // Queue transcription
+      transcriptionManager.queueTranscription,
+    ],
   );
 
   const handlePlayFile = useCallback(
@@ -130,7 +149,7 @@ export default function Home() {
 
       setViewState({
         ...viewState,
-        currentView: 'player',
+        currentView: "player",
         selectedFile: file,
       });
       updatePlayerState({ isPlaying: true });
@@ -145,27 +164,31 @@ export default function Home() {
 
         // Load transcripts for this file
         if (!file.id) {
-          toast.error('File ID is missing');
+          toast.error("File ID is missing");
           return;
         }
-        const fileTranscripts = await TranscriptionService.getFileTranscripts(file.id);
-        // Store transcripts for the progress polling
+
+        // Load transcripts into state and get the data
         await loadTranscriptsByFileId(file.id);
 
-        // If there are completed transcripts, load their segments
-        const completedTranscript = fileTranscripts.find((t) => t.status === 'completed');
-        if (completedTranscript) {
-          if (!completedTranscript.id) {
-            toast.error('Transcript ID is missing');
-            return;
+        // Use the transcripts from state to ensure consistency
+        setTimeout(() => {
+          const completedTranscript = transcripts.find(
+            (t) => t.status === "completed",
+          );
+          if (completedTranscript) {
+            if (!completedTranscript.id) {
+              toast.error("Transcript ID is missing");
+              return;
+            }
+            loadSegmentsByTranscriptId(completedTranscript.id);
+          } else {
+            // No completed transcript, use empty segments
+            clearSegments();
           }
-          await loadSegmentsByTranscriptId(completedTranscript.id);
-        } else {
-          // No completed transcript, use empty segments
-          clearSegments();
-        }
+        }, 100); // Small delay to ensure state is updated
       } catch (error) {
-        handleAndShowError(error, 'loadFileData');
+        handleAndShowError(error, "loadFileData");
         clearSegments();
       }
     },
@@ -178,7 +201,7 @@ export default function Home() {
       loadTranscriptsByFileId,
       loadSegmentsByTranscriptId,
       clearSegments,
-    ]
+    ],
   );
 
   const handleDeleteFile = useCallback(
@@ -188,10 +211,26 @@ export default function Home() {
         // Reload files to reflect the deletion
         await loadFiles();
       } catch (error) {
-        handleAndShowError(error, 'deleteFile');
+        handleAndShowError(error, "deleteFile");
       }
     },
-    [loadFiles]
+    [loadFiles],
+  );
+
+  const handleRetryTranscription = useCallback(
+    async (fileId: number) => {
+      try {
+        const file = files.find((f) => f.id === fileId);
+        if (!file) return;
+
+        // Use transcription manager to retry
+        await transcriptionManager.retryTranscription(fileId);
+        toast.success(`开始重新转录: ${file.name}`);
+      } catch (error) {
+        handleAndShowError(error, "retryTranscription");
+      }
+    },
+    [transcriptionManager, files],
   );
 
   const handlePlay = useCallback(() => {
@@ -206,7 +245,7 @@ export default function Home() {
     (start: number, end: number) => {
       setLoopPoints(start, end);
     },
-    [setLoopPoints]
+    [setLoopPoints],
   );
 
   const handleClearLoop = useCallback(() => {
@@ -217,7 +256,7 @@ export default function Home() {
     (start: number, end: number) => {
       setLoopPoints(start, end);
     },
-    [setLoopPoints]
+    [setLoopPoints],
   );
 
   const handleClearAbLoop = useCallback(() => {
@@ -226,7 +265,7 @@ export default function Home() {
 
   const renderCurrentView = useMemo(() => {
     switch (viewState.currentView) {
-      case 'upload':
+      case "upload":
         return (
           <div className="space-y-6">
             <FileUpload
@@ -237,7 +276,7 @@ export default function Home() {
           </div>
         );
 
-      case 'files':
+      case "files":
         return (
           <div className="space-y-6">
             <h2 className="mb-6 font-semibold text-2xl">Your Files</h2>
@@ -247,17 +286,18 @@ export default function Home() {
               transcriptionProgress={transcriptionProgress}
               onPlayFile={handlePlayFile}
               onDeleteFile={handleDeleteFile}
+              onRetryTranscription={handleRetryTranscription}
               isLoading={isLoading}
             />
           </div>
         );
 
-      case 'player':
+      case "player":
         return (
           <div className="space-y-6">
             <div>
               <h2 className="mb-6 font-semibold text-2xl">
-                {viewState.selectedFile?.name || 'Audio Player'}
+                {viewState.selectedFile?.name || "Audio Player"}
               </h2>
               <AudioPlayer
                 audioUrl={audioUrl}
@@ -293,10 +333,12 @@ export default function Home() {
           </div>
         );
 
-      case 'terminology':
+      case "terminology":
         return (
           <div className="space-y-6">
-            <h2 className="mb-6 font-semibold text-2xl">Terminology Glossary</h2>
+            <h2 className="mb-6 font-semibold text-2xl">
+              Terminology Glossary
+            </h2>
             <TerminologyGlossary
               terms={terms}
               onAddTerm={addTerm}
@@ -306,7 +348,7 @@ export default function Home() {
           </div>
         );
 
-      case 'settings':
+      case "settings":
         return (
           <div className="space-y-6">
             <h2 className="mb-6 font-semibold text-2xl">Data Management</h2>
@@ -346,13 +388,14 @@ export default function Home() {
     deleteTerm,
     handleSetAbLoop,
     handleClearAbLoop,
+    handleRetryTranscription,
   ]);
 
   const handleViewChange = useCallback(
-    (view: 'files' | 'terminology' | 'upload' | 'player' | 'settings') => {
+    (view: "files" | "terminology" | "upload" | "player" | "settings") => {
       updateViewState({ currentView: view });
     },
-    [updateViewState]
+    [updateViewState],
   );
 
   return (

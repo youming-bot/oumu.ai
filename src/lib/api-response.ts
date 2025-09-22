@@ -16,7 +16,14 @@ export function apiSuccess(data: unknown, status: number = 200) {
       data,
       timestamp: new Date().toISOString(),
     },
-    { status }
+    {
+      status,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    }
   );
 }
 
@@ -32,7 +39,14 @@ export function apiError(error: AppError) {
       },
       timestamp: new Date().toISOString(),
     },
-    { status: error.statusCode }
+    {
+      status: error.statusCode,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    }
   );
 }
 
@@ -48,7 +62,14 @@ export function apiCreated(data: unknown) {
 }
 
 export function apiNoContent() {
-  return new NextResponse(null, { status: 204 });
+  return new NextResponse(null, {
+    status: 204,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
+  });
 }
 
 export function apiAccepted(data: unknown) {

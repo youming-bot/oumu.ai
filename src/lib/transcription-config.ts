@@ -28,9 +28,8 @@ export function getTranscriptionConfig(): TranscriptionConfig {
   };
 }
 
-export function getHuggingFaceSettings(): {
+export function getGroqSettings(): {
   apiKey?: string;
-  baseUrl: string;
   model: string;
   supportsLanguage: boolean;
   supportsPrompt: boolean;
@@ -38,17 +37,16 @@ export function getHuggingFaceSettings(): {
   maxDuration: number;
 } {
   return {
-    apiKey: process.env.HF_API_KEY,
-    baseUrl: 'https://api-inference.huggingface.co/models/openai/whisper-large-v3',
-    model: 'openai/whisper-large-v3',
+    apiKey: process.env.GROQ_API_KEY,
+    model: 'whisper-large-v3-turbo',
     supportsLanguage: true,
     supportsPrompt: true,
-    maxFileSize: 25 * 1024 * 1024, // 25MB
-    maxDuration: 600, // 10 minutes
+    maxFileSize: 100 * 1024 * 1024, // 100MB
+    maxDuration: 3600, // 60 minutes
   };
 }
 
-export function isHuggingFaceAvailable(): boolean {
-  const _settings = getHuggingFaceSettings();
-  return true; // HuggingFace works without API key
+export function isGroqAvailable(): boolean {
+  const settings = getGroqSettings();
+  return !!settings.apiKey;
 }

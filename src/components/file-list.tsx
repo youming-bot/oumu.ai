@@ -28,6 +28,7 @@ interface FileRowProps {
   onSelect?: (fileId: number) => void;
   onPlay?: (file: FileRow) => void;
   onDelete?: (fileId: number) => void;
+  onRetryTranscription?: (fileId: number) => void;
   getProgressInfo?: (
     fileId: number
   ) => { progress: number; status: string; error?: string } | undefined;
@@ -42,6 +43,7 @@ const FileRowComponent = React.memo<FileRowProps>(
     onSelect,
     onPlay,
     onDelete,
+    onRetryTranscription,
     getProgressInfo,
     getErrorInfo,
   }) => {
@@ -60,6 +62,12 @@ const FileRowComponent = React.memo<FileRowProps>(
         onSelect(file.id);
       }
     }, [onSelect, file.id]);
+
+    const handleRetryClick = useCallback(() => {
+      if (file.id && onRetryTranscription) {
+        onRetryTranscription(file.id);
+      }
+    }, [onRetryTranscription, file.id]);
 
     const { getStatusIcon, getStatusVariant, getStatusText, formatFileSize, formatDuration } =
       useFileFormatting();
@@ -144,10 +152,44 @@ const FileRowComponent = React.memo<FileRowProps>(
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{status === 'completed' ? 'Play file' : 'Processing not complete'}</p>
+                  <p>{status === 'completed' ? '播放文件' : '转录未完成'}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+
+            {(status === 'failed' || status === 'pending') && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleRetryClick}
+                      className="h-8 w-8 text-blue-600 hover:bg-blue-100"
+                    >
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        aria-label="重试"
+                        role="img"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                      </svg>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{status === 'failed' ? '重试转录' : '开始转录'}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
 
             <TooltipProvider>
               <Tooltip>
@@ -162,7 +204,7 @@ const FileRowComponent = React.memo<FileRowProps>(
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>Delete file</p>
+                  <p>删除文件</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -181,11 +223,20 @@ interface FileListProps {
   transcriptionProgress?: Map<number, { progress: number; status: string; error?: string }>;
   onPlayFile?: (file: FileRow) => void;
   onDeleteFile?: (fileId: number) => void;
+  onRetryTranscription?: (fileId: number) => void;
   isLoading?: boolean;
 }
 
 const FileList = React.memo<FileListProps>(
-  ({ files, transcripts, transcriptionProgress, onPlayFile, onDeleteFile, isLoading = false }) => {
+  ({
+    files,
+    transcripts,
+    transcriptionProgress,
+    onPlayFile,
+    onDeleteFile,
+    onRetryTranscription,
+    isLoading = false,
+  }) => {
     const {
       selectedFiles,
       searchQuery,
@@ -404,6 +455,7 @@ const FileList = React.memo<FileListProps>(
                     onSelect={handleSelectFile}
                     onPlay={onPlayFile}
                     onDelete={onDeleteFile}
+                    onRetryTranscription={onRetryTranscription}
                     getProgressInfo={getProgressInfo}
                     getErrorInfo={getErrorInfo}
                   />

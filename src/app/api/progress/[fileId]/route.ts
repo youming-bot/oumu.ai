@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { TranscriptionService } from '@/lib/transcription-service';
+import { getServerProgress } from '@/lib/server-progress';
 
 export async function GET(
   _request: NextRequest,
@@ -13,10 +13,16 @@ export async function GET(
       return NextResponse.json({ error: 'Invalid file ID' }, { status: 400 });
     }
 
-    const progress = await TranscriptionService.getTranscriptionProgress(fileId);
+    const progress = getServerProgress(fileId);
 
     if (!progress) {
-      return NextResponse.json({ error: 'No progress found for this file' }, { status: 404 });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No progress found for this file',
+        },
+        { status: 404 }
+      );
     }
 
     return NextResponse.json({
@@ -26,6 +32,7 @@ export async function GET(
   } catch (error) {
     return NextResponse.json(
       {
+        success: false,
         error: 'Failed to fetch progress',
         message: error instanceof Error ? error.message : 'Unknown error',
       },

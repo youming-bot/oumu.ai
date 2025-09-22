@@ -1,0 +1,20 @@
+{
+  "name": "Shadowing Learning",
+  "short_name": "Shadowing",
+  "description": "Web-based language shadowing learning application",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["education", "language", "learning"],
+  "lang": "en"
+}

@@ -1,107 +1,113 @@
+import { Groq } from 'groq-sdk';
 import type { NextRequest } from 'next/server';
-import { z } from 'zod';
-import { apiError, apiFromError, apiSuccess } from '@/lib/api-response';
-import { handleError, validationError } from '@/lib/error-handler';
-import {
-  type TranscriptionResult,
-  transcribeWithHuggingFace,
-} from '@/lib/huggingface-transcription';
-import { WordTimestampService } from '@/lib/word-timestamp-service';
-
-const transcribeSchema = z.object({
-  fileData: z.object({
-    arrayBuffer: z.any(), // Will be ArrayBuffer from client
-    name: z.string(),
-    size: z.number(),
-    type: z.string(),
-    duration: z.number(), // Duration calculated on client
-  }),
-  language: z.string().optional().default('ja'),
-  chunkSeconds: z.number().int().positive().optional().default(45),
-  overlap: z.number().positive().optional().default(0.2),
-  chunks: z.array(
-    z.object({
-      arrayBuffer: z.any(),
-      startTime: z.number(),
-      endTime: z.number(),
-      duration: z.number(),
-      index: z.number(),
-    })
-  ),
-});
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const formData = await request.formData();
+    const file = formData.get('file') as File;
+    const language = (formData.get('language') as string) || 'en';
+    const model = (formData.get('model') as string) || 'whisper-large-v3-turbo';
+    const responseFormat = (formData.get('response_format') as string) || 'verbose_json';
+    const temperature = (formData.get('temperature') as string) || '0';
 
-    const validation = transcribeSchema.safeParse(body);
-
-    if (!validation.success) {
-      const error = validationError('Invalid request data', validation.error.format());
-      return apiError(error);
-    }
-
-    const { fileData, language, chunks } = validation.data;
-
-    try {
-      const processableChunks = chunks.map((chunk, index) => {
-        const arrayBuffer = new Uint8Array(chunk.arrayBuffer.data).buffer;
-        const blob = new Blob([arrayBuffer], { type: 'audio/wav' });
-        return {
-          blob,
-          startTime: chunk.startTime,
-          endTime: chunk.endTime,
-          duration: chunk.duration,
-          index: index,
-        };
-      });
-
-      // Add timeout to prevent infinite waiting
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Transcription timeout after 5 minutes')), 5 * 60 * 1000);
-      });
-
-      const result = (await Promise.race([
-        transcribeWithHuggingFace(processableChunks, {
-          language,
-          onProgress: async (_progress) => {
-            // Progress callback - intentionally empty for now
+    if (!file) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: 'NO_FILE',
+            message: 'No audio file provided',
           },
         }),
-        timeoutPromise,
-      ])) as TranscriptionResult; // Type assertion for now
-      const segments = (result.segments || []).map((segment) => {
-        const wordTimestamps = WordTimestampService.generateWordTimestamps(
-          segment.text,
-          segment.start,
-          segment.end
-        );
-
-        return {
-          start: segment.start,
-          end: segment.end,
-          text: segment.text,
-          wordTimestamps,
-        };
-      });
-      const finalResponse = {
-        text: result.text,
-        duration: fileData.duration,
-        segments: segments,
-        segmentCount: segments.length,
-        processingTime: 0,
-      };
-
-      return apiSuccess(finalResponse);
-    } catch (error) {
-      const appError = handleError(error, 'transcribe/POST-inner');
-      return apiError(appError);
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
     }
+
+    // 检查 Groq API 密钥是否存在
+    if (!process.env.GROQ_API_KEY) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: {
+            code: 'CONFIGURATION_ERROR',
+            message:
+              'GROQ_API_KEY environment variable is not set. Please configure your API key in the environment settings.',
+          },
+        }),
+        {
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        }
+      );
+    }
+
+    const groq = new Groq({
+      apiKey: process.env.GROQ_API_KEY,
+    });
+
+    // 直接发送文件给Groq进行处理
+    const transcription = (await groq.audio.transcriptions.create({
+      file: file,
+      model: model,
+      language: language,
+      response_format: responseFormat as 'verbose_json',
+      temperature: parseFloat(temperature),
+    })) as any;
+
+    // 处理转录结果，确保格式正确
+    const segments = Array.isArray(transcription.segments)
+      ? transcription.segments.map((segment: any, index: number) => ({
+          ...segment,
+          id: segment.id ?? index + 1,
+        }))
+      : [];
+
+    const response = {
+      success: true,
+      data: {
+        text: transcription.text,
+        language: transcription.language || language,
+        duration: transcription.duration,
+        segments: segments,
+        task: transcription.task,
+        x_groq: transcription.x_groq,
+      },
+    };
+
+    return new Response(JSON.stringify(response), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+      },
+    });
   } catch (error) {
-    return apiFromError(error, 'transcribe/POST');
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: {
+          code: 'TRANSCRIPTION_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        },
+      }),
+      {
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      }
+    );
   }
 }
-
-// GET endpoint is not needed for stateless API
-
-// DELETE endpoint is not needed for stateless API

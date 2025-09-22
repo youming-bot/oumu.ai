@@ -26,7 +26,21 @@ const postProcessSchema = z.object({
   enableAnnotations: z.boolean().optional().default(true),
   enableFurigana: z.boolean().optional().default(true),
   enableTerminology: z.boolean().optional().default(true),
-  terminology: z.array(z.any()).optional(), // 接受任意术语格式
+  terminology: z
+    .array(
+      z.object({
+        id: z.number().optional(),
+        word: z.string(),
+        reading: z.string().optional(),
+        meaning: z.string(),
+        category: z.string().optional(),
+        examples: z.array(z.string()).optional(),
+        tags: z.array(z.string()).optional(),
+        createdAt: z.date(),
+        updatedAt: z.date(),
+      })
+    )
+    .optional(),
 });
 
 export async function POST(request: NextRequest) {

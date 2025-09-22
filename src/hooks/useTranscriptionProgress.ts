@@ -62,13 +62,14 @@ export function useTranscriptionProgress(
       if (!file.id) return;
 
       try {
-        const response = await fetch(`/api/progress/${file.id}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.progress) {
-            updateProgress(file.id, data.progress);
-          }
-        }
+        // Import the transcription service to get progress
+        const { TranscriptionService } = await import('@/lib/transcription-service');
+        const progress = await TranscriptionService.getTranscriptionProgress(file.id);
+
+        updateProgress(file.id, {
+          progress: progress.progress,
+          status: progress.status,
+        });
       } catch (error) {
         handleSilently(error, 'progress-polling');
       }
