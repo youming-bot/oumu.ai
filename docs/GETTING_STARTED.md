@@ -41,10 +41,7 @@ cp .env.example .env.local
 4. **编辑配置文件**
 ```env
 # .env.local
-GROQ_API_KEY=your_groq_api_key
-OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_MODEL=deepseek/deepseek-chat-v3.1:free
+GROQ_API_KEY=your_groq_api_key_here
 ```
 
 5. **启动开发服务器**
@@ -110,7 +107,7 @@ pnpm dev
 - **音量调节**: 使用音量滑块
 
 #### 字幕操作
-- **点击句子**: 点击任意句子开始A-B循环
+- **点击句子**: 点击任意句子激活循环
 - **循环设置**: 在设置面板调整循环次数
 - **字体大小**: 在设置中调整字幕字体
 
@@ -150,7 +147,7 @@ pnpm dev
 **自动处理包括：**
 - **智能分句**: 自动将长文本分成合理句子
 - **翻译**: 提供多语言翻译
-- **注释**: 语法结构说明
+- **注释**: 语法结构和使用说明
 - **假名标注**: 日语假名或中文拼音
 
 ## 常用设置
@@ -345,4 +342,4 @@ pnpm dev
 
 **祝您学习愉快！**
 
-*快速开始指南 | 版本: 1.0 | 最后更新: 2024年9月24日*
+*快速开始指南 | 版本: 1.0 | 最后更新: 2025年1月*

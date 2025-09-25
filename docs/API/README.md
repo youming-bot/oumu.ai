@@ -36,6 +36,7 @@ interface TranscribeQueryParams {
   fileId: string;           // 文件唯一标识
   chunkIndex?: number;      // 分块索引（可选）
   offsetSec?: number;       // 时间偏移（可选）
+  language?: string;        // 目标语言
 }
 ```
 
@@ -43,20 +44,16 @@ interface TranscribeQueryParams {
 ```typescript
 interface TranscribeFormData {
   audio: Blob;              // 音频文件块
-  meta: string;             // JSON 格式的元数据
+  meta?: string;            // JSON 格式的元数据（可选）
 }
 ```
 
 **元数据结构:**
 ```typescript
 interface TranscribeMeta {
-  fileName: string;         // 原始文件名
-  fileSize: number;         // 文件大小
-  fileType: string;         // 文件类型
-  duration?: number;        // 音频时长
-  language?: string;        // 目标语言
-  chunkSeconds?: number;    // 分块时长
-  overlap?: number;         // 重叠时长
+  fileId?: string;          // 文件唯一标识符
+  chunkIndex?: number;      // 分块索引
+  offsetSec?: number;       // 时间偏移
 }
 ```
 
@@ -66,17 +63,25 @@ interface TranscribeMeta {
 ```typescript
 interface TranscribeSuccessResponse {
   ok: true;
-  chunkIndex: number;
+  status: "completed";
   data: {
     text: string;           // 转录文本
-    segments: RawSegment[];  // 分段结果
+    language?: string;      // 检测语言
+    duration?: number;      // 音频时长
+    segments?: Array<{
+      id: number;
+      seek: number;
+      start: number;
+      end: number;
+      text: string;
+      tokens: number[];
+      temperature: number;
+      avg_logprob: number;
+      compression_ratio: number;
+      no_speech_prob: number;
+    }>;
   };
-}
-
-interface RawSegment {
-  start: number;            // 开始时间（秒）
-  end: number;              // 结束时间（秒）
-  text: string;             // 文本内容
+  meta?: TranscribeMeta;    // 原始元数据
 }
 ```
 
@@ -85,9 +90,10 @@ interface RawSegment {
 interface TranscribeErrorResponse {
   ok: false;
   error: {
-    type: 'VALIDATION_ERROR' | 'API_ERROR' | 'NETWORK_ERROR';
+    code: 'VALIDATION_ERROR' | 'TRANSCRIPTION_FAILED' | 'INTERNAL_ERROR';
     message: string;
     details?: any;
+    statusCode: number;
   };
 }
 ```
@@ -97,19 +103,17 @@ interface TranscribeErrorResponse {
 | 错误类型 | HTTP 状态码 | 说明 |
 |---------|-------------|------|
 | `VALIDATION_ERROR` | 400 | 请求参数验证失败 |
-| `API_ERROR` | 500 | Groq API 错误 |
-| `NETWORK_ERROR` | 503 | 网络连接错误 |
-| `FILE_TOO_LARGE` | 413 | 文件大小超过限制 |
-| `UNSUPPORTED_FORMAT` | 415 | 不支持的音频格式 |
+| `TRANSCRIPTION_FAILED` | 500 | Groq API 错误 |
+| `INTERNAL_ERROR` | 500 | 服务器内部错误 |
 
 #### 使用示例
 
 **cURL:**
 ```bash
 curl -X POST \
-  "http://localhost:3000/api/transcribe?fileId=abc123&chunkIndex=0" \
+  "http://localhost:3000/api/transcribe?fileId=abc123&language=ja" \
   -F "audio=@audio_chunk.mp3" \
-  -F 'meta={"fileName":"test.mp3","fileSize":1024000,"fileType":"audio/mpeg"}'
+  -F 'meta={"fileId":"abc123","chunkIndex":0}'
 ```
 
 **JavaScript:**
@@ -117,17 +121,16 @@ curl -X POST \
 async function transcribeAudio(
   audioBlob: Blob,
   fileId: string,
-  chunkIndex: number
+  language: string = 'auto'
 ) {
   const formData = new FormData();
   formData.append('audio', audioBlob);
   formData.append('meta', JSON.stringify({
-    fileName: 'test.mp3',
-    fileSize: audioBlob.size,
-    fileType: audioBlob.type
+    fileId,
+    chunkIndex: 0
   }));
 
-  const response = await fetch(`/api/transcribe?fileId=${fileId}&chunkIndex=${chunkIndex}`, {
+  const response = await fetch(`/api/transcribe?fileId=${fileId}&language=${language}`, {
     method: 'POST',
     body: formData
   });
@@ -153,12 +156,20 @@ async function transcribeAudio(
 
 ```typescript
 interface PostProcessRequest {
-  fileId: string;                     // 文件唯一标识
-  segments: RawSegment[];             // 原始分段数据
-  targetLanguage?: string;            // 目标语言（默认: 'zh'）
-  enableAnnotations?: boolean;        // 启用注释（默认: true）
-  enableFurigana?: boolean;           // 启用假名（默认: true）
-  enableTerminology?: boolean;        // 启用术语（默认: true）
+  segments: Array<{
+    text: string;
+    start: number;
+    end: number;
+    wordTimestamps?: Array<{
+      word: string;
+      start: number;
+      end: number;
+    }>;
+  }>;
+  language?: string;            // 源语言（默认: 'ja'）
+  targetLanguage?: string;     // 目标语言（默认: 'en'）
+  enableAnnotations?: boolean; // 启用注释（默认: true）
+  enableFurigana?: boolean;    // 启用假名（默认: true）
 }
 ```
 
@@ -169,21 +180,17 @@ interface PostProcessRequest {
 interface PostProcessSuccessResponse {
   ok: true;
   data: {
-    lang: string;                    // 检测到的语言
-    segments: ProcessedSegment[];     // 处理后的分段
+    processedSegments: number;
+    segments: Array<{
+      text: string;
+      start: number;
+      end: number;
+      normalizedText?: string;
+      translation?: string;
+      annotations?: string[];
+      furigana?: string;
+    }>;
   };
-}
-
-interface ProcessedSegment {
-  id: number;                         // 分段ID
-  start: number;                     // 开始时间
-  end: number;                       // 结束时间
-  text: string;                      // 原始文本
-  normalizedText?: string;           // 规范化文本
-  translation?: string;              // 翻译文本
-  annotations?: string;              // 语法注释
-  furigana?: string;                 // 假名标注
-  wordTimestamps: WordTimestamp[];    // 词级时间戳
 }
 ```
 
@@ -192,9 +199,10 @@ interface ProcessedSegment {
 interface PostProcessErrorResponse {
   ok: false;
   error: {
-    type: 'VALIDATION_ERROR' | 'API_ERROR' | 'PROCESSING_ERROR';
+    code: 'VALIDATION_ERROR' | 'TIMEOUT' | 'RATE_LIMIT' | 'AUTH_ERROR' | 'CONFIG_ERROR';
     message: string;
     details?: any;
+    statusCode: number;
   };
 }
 ```
@@ -202,18 +210,14 @@ interface PostProcessErrorResponse {
 #### 处理选项
 
 **语言支持:**
-- `zh` - 中文
-- `en` - 英文
-- `ja` - 日文
-- `ko` - 韩文
-- `auto` - 自动检测
+- 源语言：`ja`（日语）等
+- 目标语言：`en`（英语）等
 
 **处理特性:**
-- **分句规范化**: 智能分段和标点修正
-- **翻译**: 多语言翻译支持
-- **假名标注**: 日文假名和拼音标注
-- **语法注释**: 语法结构和使用说明
-- **术语统一**: 自定义术语库应用
+- **文本规范化**: 清理填充词，修正语法
+- **翻译**: 提供多语言翻译
+- **注释**: 添加语法和文化注释
+- **假名标注**: 为日语汉字提供假名
 
 #### 使用示例
 
@@ -223,25 +227,24 @@ curl -X POST \
   "http://localhost:3000/api/postprocess" \
   -H "Content-Type: application/json" \
   -d '{
-    "fileId": "abc123",
     "segments": [
       {
+        "text": "こんにちは世界",
         "start": 0,
-        "end": 5.2,
-        "text": "Hello world"
+        "end": 2.5
       }
     ],
-    "targetLanguage": "zh",
+    "language": "ja",
+    "targetLanguage": "en",
     "enableAnnotations": true,
-    "enableFurigana": false
+    "enableFurigana": true
   }'
 ```
 
 **JavaScript:**
 ```typescript
 async function postProcessSegments(
-  fileId: string,
-  segments: RawSegment[],
+  segments: Array<{text: string; start: number; end: number}>,
   options: PostProcessOptions = {}
 ) {
   const response = await fetch('/api/postprocess', {
@@ -250,12 +253,11 @@ async function postProcessSegments(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      fileId,
       segments,
-      targetLanguage: 'zh',
+      language: 'ja',
+      targetLanguage: 'en',
       enableAnnotations: true,
       enableFurigana: true,
-      enableTerminology: true,
       ...options
     })
   });
@@ -361,11 +363,10 @@ async function getProcessingProgress(fileId: string) {
 interface ErrorResponse {
   ok: false;
   error: {
-    type: string;           // 错误类型
+    code: string;           // 错误代码
     message: string;         // 用户友好的错误消息
     details?: any;          // 详细错误信息
-    code?: string;          // 错误代码
-    timestamp: string;      // 错误时间戳
+    statusCode: number;      // HTTP 状态码
   };
 }
 ```
@@ -375,12 +376,11 @@ interface ErrorResponse {
 | 错误类型 | 说明 | HTTP 状态码 |
 |---------|------|-------------|
 | `VALIDATION_ERROR` | 请求参数验证失败 | 400 |
-| `AUTHENTICATION_ERROR` | 认证失败 | 401 |
-| `AUTHORIZATION_ERROR` | 权限不足 | 403 |
-| `NOT_FOUND` | 资源不存在 | 404 |
-| `RATE_LIMIT_ERROR` | 请求频率限制 | 429 |
-| `API_ERROR` | 外部 API 错误 | 502 |
-| `NETWORK_ERROR` | 网络连接错误 | 503 |
+| `TIMEOUT` | 请求超时 | 408 |
+| `RATE_LIMIT` | 请求频率限制 | 429 |
+| `AUTH_ERROR` | 认证失败 | 401 |
+| `CONFIG_ERROR` | 配置错误 | 500 |
+| `TRANSCRIPTION_FAILED` | 转录失败 | 500 |
 | `INTERNAL_ERROR` | 服务器内部错误 | 500 |
 
 ### 重试策略
@@ -404,7 +404,8 @@ const defaultRetryConfig: RetryConfig = {
   retryableErrors: [
     'NETWORK_ERROR',
     'API_ERROR',
-    'RATE_LIMIT_ERROR'
+    'RATE_LIMIT',
+    'TIMEOUT'
   ]
 };
 ```
@@ -426,16 +427,22 @@ class OumuAPIClient {
   async transcribe(
     audioBlob: Blob,
     fileId: string,
-    chunkIndex: number,
-    meta: TranscribeMeta
+    options: TranscribeOptions = {}
   ): Promise<TranscribeSuccessResponse['data']> {
     return this.withRetry(async () => {
       const formData = new FormData();
       formData.append('audio', audioBlob);
-      formData.append('meta', JSON.stringify(meta));
+      formData.append('meta', JSON.stringify({
+        fileId
+      }));
+
+      const params = new URLSearchParams({
+        fileId,
+        language: options.language || 'auto'
+      });
 
       const response = await fetch(
-        `${this.baseURL}/api/transcribe?fileId=${fileId}&chunkIndex=${chunkIndex}`,
+        `${this.baseURL}/api/transcribe?${params}`,
         {
           method: 'POST',
           body: formData
@@ -644,4 +651,4 @@ export class ConcurrencyLimiter {
 
 ---
 
-*最后更新: 2024年9月24日*
+*最后更新: 2025年1月*

@@ -1,11 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
-import { PageErrorBoundary } from "@/components/error-boundary";
-import { ToastContainer } from "@/components/error-toast";
-import { MonitoringInitializer } from "@/components/monitoring-initializer";
-import PwaRegister from "@/components/pwa-register";
+import { PageErrorBoundary } from "@/components/ui/ErrorBoundary";
+import { ToastContainer } from "@/components/ui/ErrorToast";
+import { MonitoringInitializer } from "@/components/ui/MonitoringInitializer";
+import PwaRegister from "@/components/ui/PwaRegister";
 
 export const metadata: Metadata = {
   title: "影子跟读",
@@ -29,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh" suppressHydrationWarning>
       <head>
-        <link rel="apple-touch-icon" href="/icon.svg" />
+        <link rel="apple-touch-icon" href="/icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="影子跟读" />
@@ -47,9 +46,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {/* PWA主题色 */}
         <meta name="theme-color" content="#3b82f6" />
-
-        {/* 防止Fouc（Flash of Unstyled Content） */}
-        <Script src="/theme-init.js" strategy="beforeInteractive" />
 
         {/* Material Icons */}
         <link

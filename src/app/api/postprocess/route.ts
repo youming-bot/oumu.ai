@@ -296,17 +296,35 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validation = validateRequestData(body);
     if (!validation.isValid) {
-      return apiError(validation.error!);
+      return apiError(
+        validation.error ?? {
+          code: "INVALID_REQUEST" as const,
+          message: "Invalid request data",
+          statusCode: 400,
+        },
+      );
     }
 
-    // 确保data不是undefined（因为我们已经验证了isValid）
-    const data = validation.data!;
+    const data = validation.data;
+    if (!data) {
+      return apiError({
+        code: "INVALID_REQUEST" as const,
+        message: "Request data is missing",
+        statusCode: 400,
+      });
+    }
     const { segments, language, targetLanguage, enableAnnotations, enableFurigana } = data;
 
     // 验证输入数据
     const segmentValidation = validateSegments(segments);
     if (!segmentValidation.isValid) {
-      return apiError(segmentValidation.error!);
+      return apiError(
+        segmentValidation.error ?? {
+          code: "UNKNOWN_VALIDATION_ERROR" as const,
+          message: "Segment validation failed",
+          statusCode: 400,
+        },
+      );
     }
 
     const processedSegments = await postProcessSegmentsWithGroq(segments, language, {

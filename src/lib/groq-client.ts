@@ -13,11 +13,8 @@ export interface GroqTranscriptionResponse {
     text: string;
     tokens: number[];
     temperature: number;
-    // biome-ignore lint/style/useNamingConvention: These are Groq API response fields
     avg_logprob: number;
-    // biome-ignore lint/style/useNamingConvention: These are Groq API response fields
     compression_ratio: number;
-    // biome-ignore lint/style/useNamingConvention: These are Groq API response fields
     no_speech_prob: number;
   }>;
 }
@@ -25,8 +22,7 @@ export interface GroqTranscriptionResponse {
 export interface GroqTranscriptionOptions {
   language?: string;
   prompt?: string;
-  // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
-  response_format?: "json" | "text" | "verbose_json";
+  responseFormat?: "json" | "text" | "verbose_json";
   temperature?: number;
   onProgress?: (progress: {
     chunkIndex: number;
@@ -38,7 +34,7 @@ export interface GroqTranscriptionOptions {
 }
 
 export class GroqClient {
-  private client: any;
+  private client: Groq;
 
   constructor(apiKey: string = process.env.GROQ_API_KEY || "") {
     this.client = new Groq({ apiKey });
@@ -49,16 +45,15 @@ export class GroqClient {
     options: {
       language?: string;
       model?: string;
-      responseFormat?: string;
+      responseFormat?: "json" | "text" | "verbose_json";
       temperature?: number;
     } = {},
   ): Promise<GroqTranscriptionResponse> {
-    const transcription = await (this.client as any).audio.transcriptions.create({
+    const transcription = await this.client.audio.transcriptions.create({
       file,
       model: options.model || "whisper-large-v3-turbo",
       language: options.language || "auto",
-      // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
-      response_format: (options.responseFormat as any) || "verbose_json",
+      response_format: options.responseFormat ?? "verbose_json",
       temperature: options.temperature || 0,
     });
 
@@ -70,8 +65,7 @@ export class GroqClient {
     options: {
       language?: string;
       prompt?: string;
-      // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
-      response_format?: "json" | "text" | "srt" | "verbose_json" | "vtt";
+      responseFormat?: "json" | "text" | "verbose_json";
       temperature?: number;
     } = {},
   ): Promise<GroqTranscriptionResponse> {
@@ -79,14 +73,12 @@ export class GroqClient {
       type: "audio/wav",
     });
 
-    const transcription = await (this.client as any).audio.transcriptions.create({
+    const transcription = await this.client.audio.transcriptions.create({
       file,
       model: "whisper-large-v3-turbo",
       language: options.language || "ja",
       prompt: options.prompt,
-      // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
-      response_format:
-        (options.response_format as "json" | "text" | "verbose_json") || "verbose_json",
+      response_format: options.responseFormat ?? "verbose_json",
       temperature: options.temperature || 0,
     });
 
@@ -114,8 +106,7 @@ export class GroqClient {
         const result = await this.transcribeChunk(chunk, {
           language: options.language,
           prompt: options.prompt,
-          // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
-          response_format: options.response_format,
+          responseFormat: options.responseFormat,
           temperature: options.temperature,
         });
 
@@ -222,8 +213,7 @@ export async function transcribeWithGroq(
   const results = await groqClient.transcribeChunks(chunks, {
     language: options.language,
     prompt: options.prompt,
-    // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
-    response_format: options.response_format,
+    responseFormat: options.responseFormat,
     temperature: options.temperature,
     onProgress: options.onProgress,
   });

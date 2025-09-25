@@ -47,14 +47,18 @@ export function usePlayerData(fileId: string) {
       }
 
       // 获取转录记录
-      const transcripts = await db.transcripts.where("fileId").equals(file.id!).toArray();
+      if (typeof file.id !== "number") {
+        throw new Error("文件缺少有效的ID");
+      }
+
+      const transcripts = await db.transcripts.where("fileId").equals(file.id).toArray();
 
       const transcript = transcripts.length > 0 ? transcripts[0] : null;
 
       // 获取字幕段
       let segments: Segment[] = [];
-      if (transcript) {
-        segments = await db.segments.where("transcriptId").equals(transcript.id!).toArray();
+      if (transcript && typeof transcript.id === "number") {
+        segments = await db.segments.where("transcriptId").equals(transcript.id).toArray();
       }
 
       // 生成音频URL

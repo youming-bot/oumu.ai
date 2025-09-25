@@ -4,7 +4,7 @@
 
 ## 概览
 
-后处理 API 使用 OpenRouter 的语言模型对转录文本进行智能处理，包括分句规范化、翻译、注释生成等功能。
+后处理 API 使用 Groq Moonshot 模型对转录文本进行智能处理，包括分句规范化、翻译、注释生成等功能。
 
 ### 特性
 
@@ -28,18 +28,20 @@
 
 ```typescript
 interface PostProcessRequest {
-  fileId: string;                     // 文件唯一标识
-  segments: RawSegment[];             // 原始分段数据
-  targetLanguage?: string;            // 目标语言（默认: 'zh'）
-  enableAnnotations?: boolean;        // 启用注释（默认: true）
-  enableFurigana?: boolean;           // 启用假名（默认: true）
-  enableTerminology?: boolean;        // 启用术语（默认: true）
-}
-
-interface RawSegment {
-  start: number;                     // 开始时间（秒）
-  end: number;                       // 结束时间（秒）
-  text: string;                      // 原始文本
+  segments: Array<{
+    text: string;
+    start: number;
+    end: number;
+    wordTimestamps?: Array<{
+      word: string;
+      start: number;
+      end: number;
+    }>;
+  }>;
+  language?: string;            // 源语言（默认: 'ja'）
+  targetLanguage?: string;     // 目标语言（默认: 'en'）
+  enableAnnotations?: boolean; // 启用注释（默认: true）
+  enableFurigana?: boolean;    // 启用假名（默认: true）
 }
 ```
 
@@ -47,25 +49,29 @@ interface RawSegment {
 
 | 参数 | 类型 | 必需 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `fileId` | string | 是 | - | 文件唯一标识符 |
-| `segments` | RawSegment[] | 是 | - | 原始分段数据 |
-| `targetLanguage` | string | 否 | 'zh' | 目标语言代码 |
+| `segments` | Segment[] | 是 | - | 原始分段数据 |
+| `language` | string | 否 | 'ja' | 源语言代码 |
+| `targetLanguage` | string | 否 | 'en' | 目标语言代码 |
 | `enableAnnotations` | boolean | 否 | true | 是否启用语法注释 |
 | `enableFurigana` | boolean | 否 | true | 是否启用假名标注 |
-| `enableTerminology` | boolean | 否 | true | 是否启用术语统一 |
 
 ### 语言支持
 
+#### 源语言
 | 代码 | 语言 | 说明 |
 |------|------|------|
-| `zh` | 中文 | 简体中文 |
-| `zh-tw` | 中文 | 繁体中文 |
-| `en` | 英语 | 英语 |
-| `ja` | 日语 | 日语 |
-| `ko` | 韩语 | 韩语 |
-| `es` | 西班牙语 | 西班牙语 |
-| `fr` | 法语 | 法语 |
-| `de` | 德语 | 德语 |
+| `ja` | 日语 | 主要支持语言 |
+| `en` | 英语 | 英语支持 |
+| `zh` | 中文 | 中文支持 |
+| `ko` | 韩语 | 韩语支持 |
+
+#### 目标语言
+| 代码 | 语言 | 翻译质量 | 注释支持 |
+|------|------|----------|----------|
+| `en` | 英语 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| `zh` | 中文 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
+| `ja` | 日语 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| `ko` | 韩语 | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
 
 ## 响应格式
 
@@ -75,29 +81,17 @@ interface RawSegment {
 interface PostProcessSuccessResponse {
   ok: true;
   data: {
-    lang: string;                    // 检测到的源语言
-    segments: ProcessedSegment[];     // 处理后的分段
-    processingTime: number;          // 处理时间（毫秒）
+    processedSegments: number; // 处理的分段数量
+    segments: Array<{
+      text: string;                    // 原始文本
+      start: number;                   // 开始时间
+      end: number;                     // 结束时间
+      normalizedText?: string;          // 规范化文本
+      translation?: string;             // 翻译文本
+      annotations?: string[];           // 语法注释
+      furigana?: string;                // 假名标注
+    }>;
   };
-}
-
-interface ProcessedSegment {
-  id: number;                         // 分段ID
-  start: number;                     // 开始时间
-  end: number;                       // 结束时间
-  text: string;                      // 原始文本
-  normalizedText?: string;           // 规范化文本
-  translation?: string;              // 翻译文本
-  annotations?: string;              // 语法注释
-  furigana?: string;                 // 假名标注
-  wordTimestamps: WordTimestamp[];    // 词级时间戳
-}
-
-interface WordTimestamp {
-  word: string;                      // 单词文本
-  startTime: number;                  // 开始时间
-  endTime: number;                    // 结束时间
-  confidence?: number;                // 置信度
 }
 ```
 
@@ -107,10 +101,10 @@ interface WordTimestamp {
 interface PostProcessErrorResponse {
   ok: false;
   error: {
-    type: string;
+    code: 'VALIDATION_ERROR' | 'TIMEOUT' | 'RATE_LIMIT' | 'AUTH_ERROR' | 'CONFIG_ERROR';
     message: string;
     details?: any;
-    timestamp: string;
+    statusCode: number;
   };
 }
 ```
@@ -124,19 +118,27 @@ interface PostProcessErrorResponse {
 ```typescript
 // 输入
 {
-  "text": "hello world this is a test sentence"
+  "segments": [
+    {
+      "text": "こんにちは世界これはテストです",
+      "start": 0,
+      "end": 5.2
+    }
+  ]
 }
 
 // 输出
 {
   "segments": [
     {
-      "text": "Hello world.",
-      "normalizedText": "Hello world."
+      "text": "こんにちは世界",
+      "normalizedText": "こんにちは世界",
+      "translation": "Hello world"
     },
     {
-      "text": "This is a test sentence.",
-      "normalizedText": "This is a test sentence."
+      "text": "これはテストです",
+      "normalizedText": "これはテストです",
+      "translation": "This is a test"
     }
   ]
 }
@@ -149,12 +151,12 @@ interface PostProcessErrorResponse {
 ```typescript
 // 输入
 {
-  "text": "hello   world"
+  "text": "こんにちは   世界"
 }
 
 // 输出
 {
-  "normalizedText": "Hello world."
+  "normalizedText": "こんにちは世界"
 }
 ```
 
@@ -163,14 +165,14 @@ interface PostProcessErrorResponse {
 支持多种语言之间的翻译：
 
 ```typescript
-// 中文翻译
+// 日语翻译
 {
-  "text": "Hello world",
-  "targetLanguage": "zh",
-  "translation": "你好世界"
+  "text": "こんにちは世界",
+  "targetLanguage": "en",
+  "translation": "Hello world"
 }
 
-// 日语翻译
+// 英语翻译
 {
   "text": "Hello world",
   "targetLanguage": "ja",
@@ -183,16 +185,24 @@ interface PostProcessErrorResponse {
 自动生成语法结构说明：
 
 ```typescript
-// 英语语法注释
-{
-  "text": "I am learning",
-  "annotations": "主语 + be动词 + 现在分词"
-}
-
 // 日语语法注释
 {
   "text": "私は勉強しています",
-  "annotations": "主語 + 助詞 + 動詞 + います"
+  "annotations": [
+    "私（わたくし）: 主语，表示自己",
+    "は: 主题助词",
+    "勉強しています: 进行时态，表示正在学习"
+  ]
+}
+
+// 英语语法注释
+{
+  "text": "I am learning",
+  "annotations": [
+    "I: 主语",
+    "am: be动词",
+    "learning: 现在分词，表示进行时"
+  ]
 }
 ```
 
@@ -214,33 +224,14 @@ interface PostProcessErrorResponse {
 }
 ```
 
-### 6. 术语统一
-
-应用自定义术语库确保翻译一致性：
-
-```typescript
-// 术语库示例
-const terminology = {
-  "shadowing": "影子跟读",
-  "transcription": "转录",
-  "segmentation": "分段"
-};
-
-// 应用术语
-{
-  "text": "shadowing learning",
-  "translation": "影子跟读学习"
-}
-```
-
 ## 使用示例
 
 ### 基础使用
 
 ```typescript
 async function postProcessSegments(
-  fileId: string,
-  segments: RawSegment[]
+  segments: Array<{text: string; start: number; end: number}>,
+  options: PostProcessOptions = {}
 ): Promise<ProcessedSegment[]> {
   const response = await fetch('/api/postprocess', {
     method: 'POST',
@@ -248,12 +239,12 @@ async function postProcessSegments(
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      fileId,
       segments,
-      targetLanguage: 'zh',
+      language: 'ja',
+      targetLanguage: 'en',
       enableAnnotations: true,
       enableFurigana: true,
-      enableTerminology: true
+      ...options
     })
   });
 
@@ -278,49 +269,56 @@ class PostProcessingService {
   }
 
   async processWithCustomOptions(
-    fileId: string,
-    segments: RawSegment[],
+    segments: Array<{text: string; start: number; end: number}>,
     options: PostProcessOptions
   ): Promise<ProcessingResult> {
     const request: PostProcessRequest = {
-      fileId,
       segments,
-      targetLanguage: options.targetLanguage || 'zh',
+      language: options.language || 'ja',
+      targetLanguage: options.targetLanguage || 'en',
       enableAnnotations: options.enableAnnotations ?? true,
-      enableFurigana: options.enableFurigana ?? true,
-      enableTerminology: options.enableTerminology ?? true
+      enableFurigana: options.enableFurigana ?? true
     };
 
-    const response = await this.apiClient.postProcess(request);
+    const response = await this.apiClient.post('/api/postprocess', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(request)
+    });
+
+    const result = await response.json();
+
+    if (!result.ok) {
+      throw new Error(result.error.message);
+    }
 
     return {
-      segments: response.data.segments,
-      detectedLanguage: response.data.lang,
-      processingTime: response.data.processingTime
+      segments: result.data.segments,
+      processedCount: result.data.processedSegments
     };
   }
 
   async batchProcess(
-    files: Array<{ fileId: string; segments: RawSegment[] }>,
+    files: Array<{segments: Array<{text: string; start: number; end: number}>}>,
     options: PostProcessOptions
   ): Promise<Map<string, ProcessingResult>> {
     const results = new Map<string, ProcessingResult>();
 
     // 并发处理多个文件
-    const promises = files.map(async ({ fileId, segments }) => {
+    const promises = files.map(async ({segments}, index) => {
       try {
         const result = await this.processWithCustomOptions(
-          fileId,
           segments,
           options
         );
-        results.set(fileId, result);
+        results.set(`file_${index}`, result);
       } catch (error) {
-        console.error(`Failed to process file ${fileId}:`, error);
-        results.set(fileId, {
+        console.error(`Failed to process file ${index}:`, error);
+        results.set(`file_${index}`, {
           segments: [],
-          detectedLanguage: 'unknown',
-          processingTime: 0,
+          processedCount: 0,
           error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
@@ -341,8 +339,7 @@ function usePostProcessing() {
   const [error, setError] = useState<string | null>(null);
 
   const postProcessSegments = useCallback(async (
-    fileId: string,
-    segments: RawSegment[],
+    segments: Array<{text: string; start: number; end: number}>,
     options: PostProcessOptions = {}
   ) => {
     setIsProcessing(true);
@@ -353,7 +350,6 @@ function usePostProcessing() {
       const service = new PostProcessingService('/api');
 
       const result = await service.processWithCustomOptions(
-        fileId,
         segments,
         options
       );
@@ -384,17 +380,17 @@ function usePostProcessing() {
 | 错误类型 | 说明 | 解决方案 |
 |---------|------|----------|
 | `VALIDATION_ERROR` | 请求参数验证失败 | 检查请求格式和参数 |
-| `API_ERROR` | OpenRouter API 错误 | 检查API密钥和网络连接 |
-| `PROCESSING_ERROR` | 文本处理失败 | 检查输入文本格式 |
-| `RATE_LIMIT_ERROR` | 请求频率限制 | 降低请求频率 |
-| `LANGUAGE_NOT_SUPPORTED` | 语言不支持 | 检查目标语言代码 |
+| `TIMEOUT` | 请求超时 | 增加超时时间或重试 |
+| `RATE_LIMIT` | 请求频率限制 | 降低请求频率 |
+| `AUTH_ERROR` | 认证失败 | 检查API密钥配置 |
+| `CONFIG_ERROR` | 配置错误 | 检查服务器配置 |
 
 ### 错误处理示例
 
 ```typescript
 class PostProcessingErrorHandler {
   static handle(error: any): never {
-    if (error.type === 'VALIDATION_ERROR') {
+    if (error.code === 'VALIDATION_ERROR') {
       throw new PostProcessingError(
         '请求格式错误',
         'VALIDATION_ERROR',
@@ -402,25 +398,24 @@ class PostProcessingErrorHandler {
       );
     }
 
-    if (error.type === 'API_ERROR') {
-      if (error.details?.status === 429) {
-        throw new PostProcessingError(
-          '请求过于频繁，请稍后重试',
-          'RATE_LIMIT_ERROR'
-        );
-      }
-
+    if (error.code === 'TIMEOUT') {
       throw new PostProcessingError(
-        'AI服务暂时不可用',
-        'API_ERROR'
+        '请求超时，请稍后重试',
+        'TIMEOUT_ERROR'
       );
     }
 
-    if (error.type === 'PROCESSING_ERROR') {
+    if (error.code === 'RATE_LIMIT') {
       throw new PostProcessingError(
-        '文本处理失败',
-        'PROCESSING_ERROR',
-        error.details
+        '请求过于频繁，请稍后重试',
+        'RATE_LIMIT_ERROR'
+      );
+    }
+
+    if (error.code === 'AUTH_ERROR') {
+      throw new PostProcessingError(
+        'API认证失败',
+        'AUTH_ERROR'
       );
     }
 
@@ -451,8 +446,7 @@ class PostProcessingError extends Error {
 // 批量处理优化
 class BatchPostProcessor {
   private queue: Array<{
-    fileId: string;
-    segments: RawSegment[];
+    segments: Array<{text: string; start: number; end: number}>;
     options: PostProcessOptions;
     resolve: (result: ProcessingResult) => void;
     reject: (error: Error) => void;
@@ -462,12 +456,11 @@ class BatchPostProcessor {
   private batchSize = 5; // 每批处理5个文件
 
   async addToBatch(
-    fileId: string,
-    segments: RawSegment[],
+    segments: Array<{text: string; start: number; end: number}>,
     options: PostProcessOptions
   ): Promise<ProcessingResult> {
     return new Promise((resolve, reject) => {
-      this.queue.push({ fileId, segments, options, resolve, reject });
+      this.queue.push({ segments, options, resolve, reject });
 
       if (!this.processing) {
         this.processBatch();
@@ -482,9 +475,9 @@ class BatchPostProcessor {
       const batch = this.queue.splice(0, this.batchSize);
 
       try {
-        const promises = batch.map(async ({ fileId, segments, options, resolve, reject }) => {
+        const promises = batch.map(async ({ segments, options, resolve, reject }) => {
           try {
-            const result = await this.processSingle(fileId, segments, options);
+            const result = await this.processSingle(segments, options);
             resolve(result);
           } catch (error) {
             reject(error);
@@ -497,7 +490,6 @@ class BatchPostProcessor {
         for (const item of batch) {
           try {
             const result = await this.processSingle(
-              item.fileId,
               item.segments,
               item.options
             );
@@ -516,18 +508,15 @@ class BatchPostProcessor {
   }
 
   private async processSingle(
-    fileId: string,
-    segments: RawSegment[],
+    segments: Array<{text: string; start: number; end: number}>,
     options: PostProcessOptions
   ): Promise<ProcessingResult> {
-    // 单个文件处理逻辑
     const response = await fetch('/api/postprocess', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        fileId,
         segments,
         ...options
       })
@@ -541,8 +530,7 @@ class BatchPostProcessor {
 
     return {
       segments: result.data.segments,
-      detectedLanguage: result.data.lang,
-      processingTime: result.data.processingTime
+      processedCount: result.data.processedSegments
     };
   }
 }
@@ -582,7 +570,7 @@ class ProcessingCache {
     });
   }
 
-  generateKey(segments: RawSegment[], options: PostProcessOptions): string {
+  generateKey(segments: Array<{text: string}>, options: PostProcessOptions): string {
     const segmentsText = segments.map(s => s.text).join('|');
     const optionsStr = JSON.stringify(options);
 
@@ -604,10 +592,10 @@ const optimizedRequest = {
   segments: mergeShortSegments(segments, 10), // 合并小于10个字符的段落
 
   // 合理设置选项
-  targetLanguage: 'zh',
+  language: 'ja',
+  targetLanguage: 'en',
   enableAnnotations: segments.length > 0,
-  enableFurigana: segments.some(s => /[\u3040-\u309F\u4E00-\u9FFF]/.test(s.text)),
-  enableTerminology: hasCustomTerminology()
+  enableFurigana: segments.some(s => /[\u3040-\u309F\u4E00-\u9FFF]/.test(s.text))
 };
 ```
 
@@ -616,8 +604,7 @@ const optimizedRequest = {
 ```typescript
 // 错误恢复策略
 async function resilientPostProcess(
-  fileId: string,
-  segments: RawSegment[],
+  segments: Array<{text: string; start: number; end: number}>,
   options: PostProcessOptions,
   maxRetries: number = 3
 ): Promise<ProcessingResult> {
@@ -632,7 +619,7 @@ async function resilientPostProcess(
         );
       }
 
-      return await postProcessWithRetry(fileId, segments, options);
+      return await postProcessWithRetry(segments, options);
     } catch (error) {
       lastError = error as Error;
 
@@ -642,7 +629,7 @@ async function resilientPostProcess(
         continue;
       }
 
-      if (error.type === 'API_ERROR' && attempt < maxRetries) {
+      if (error.type === 'TIMEOUT_ERROR' && attempt < maxRetries) {
         continue;
       }
     }
@@ -671,8 +658,7 @@ const processingSteps: ProcessingStep[] = [
 ];
 
 async function postProcessWithProgress(
-  fileId: string,
-  segments: RawSegment[],
+  segments: Array<{text: string; start: number; end: number}>,
   options: PostProcessOptions,
   onProgress: (step: string, progress: number) => void
 ): Promise<ProcessingResult> {
@@ -694,10 +680,10 @@ async function postProcessWithProgress(
   onProgress('completed', 100);
 
   // 实际处理逻辑
-  return postProcessSegments(fileId, segments, options);
+  return postProcessSegments(segments, options);
 }
 ```
 
 ---
 
-*最后更新: 2024年9月24日*
+*最后更新: 2025年1月*

@@ -4,14 +4,14 @@
 
 ## 概览
 
-转录 API 使用 Groq Whisper-large-v3 模型进行高质量的音频转录。支持多种音频格式，提供精确的时间戳和分段信息。
+转录 API 使用 Groq Whisper-large-v3-turbo 模型进行高质量的音频转录。支持多种音频格式，提供精确的时间戳和分段信息。
 
 ### 特性
 
-- **高质量转录**: 使用 Groq Whisper-large-v3 模型
+- **高质量转录**: 使用 Groq Whisper-large-v3-turbo 模型
 - **多格式支持**: MP3, WAV, M4A, OGG 等常见格式
 - **分块处理**: 支持大文件分块处理
-- **时间戳精确**: 提供词级别的时间戳信息
+- **时间戳精确**: 提供段落级别的时间戳信息
 - **多语言检测**: 自动检测音频语言
 - **流式处理**: 高效的流式音频处理
 
@@ -31,25 +31,22 @@
 | `fileId` | string | 是 | - | 文件唯一标识符 |
 | `chunkIndex` | number | 否 | - | 分块索引（分块处理时使用） |
 | `offsetSec` | number | 否 | 0 | 时间偏移（秒） |
+| `language` | string | 否 | "auto" | 目标语言代码 |
 
 ### Form Data
 
 | 字段 | 类型 | 必需 | 说明 |
 |------|------|------|------|
 | `audio` | Blob | 是 | 音频文件块 |
-| `meta` | string | 是 | JSON 格式的元数据 |
+| `meta` | string | 否 | JSON 格式的元数据 |
 
 ### 元数据结构
 
 ```typescript
 interface TranscribeMeta {
-  fileName: string;         // 原始文件名
-  fileSize: number;         // 文件大小（字节）
-  fileType: string;         // MIME 类型
-  duration?: number;        // 音频时长（秒）
-  language?: string;        // 目标语言代码
-  chunkSeconds?: number;    // 分块时长（秒）
-  overlap?: number;         // 重叠时长（秒）
+  fileId?: string;         // 文件唯一标识符
+  chunkIndex?: number;    // 分块索引
+  offsetSec?: number;     // 时间偏移（秒）
 }
 ```
 
@@ -83,17 +80,25 @@ interface TranscribeMeta {
 ```typescript
 interface TranscribeSuccessResponse {
   ok: true;
-  chunkIndex: number;
+  status: "completed";
   data: {
     text: string;           // 完整转录文本
-    segments: RawSegment[];  // 分段信息
+    language?: string;      // 检测到的语言
+    duration?: number;      // 音频时长（秒）
+    segments?: Array<{
+      id: number;           // 段落ID
+      seek: number;         // 查找位置
+      start: number;        // 开始时间（秒）
+      end: number;          // 结束时间（秒）
+      text: string;         // 段落文本
+      tokens: number[];     // 词元数组
+      temperature: number;  // 温度参数
+      avg_logprob: number;  // 平均对数概率
+      compression_ratio: number; // 压缩比率
+      no_speech_prob: number; // 无语音概率
+    }>;
   };
-}
-
-interface RawSegment {
-  start: number;            // 开始时间（秒）
-  end: number;              // 结束时间（秒）
-  text: string;             // 分段文本
+  meta?: TranscribeMeta;    // 原始元数据
 }
 ```
 
@@ -103,10 +108,10 @@ interface RawSegment {
 interface TranscribeErrorResponse {
   ok: false;
   error: {
-    type: string;
+    code: 'VALIDATION_ERROR' | 'TRANSCRIPTION_FAILED' | 'INTERNAL_ERROR';
     message: string;
     details?: any;
-    timestamp: string;
+    statusCode: number;
   };
 }
 ```
@@ -147,39 +152,39 @@ async function processLargeFile(file: File, fileId: string) {
 | 错误类型 | HTTP 状态码 | 说明 |
 |---------|-------------|------|
 | `VALIDATION_ERROR` | 400 | 请求参数验证失败 |
-| `FILE_TOO_LARGE` | 413 | 文件大小超过限制 |
-| `UNSUPPORTED_FORMAT` | 415 | 不支持的音频格式 |
-| `API_ERROR` | 500 | Groq API 错误 |
-| `NETWORK_ERROR` | 503 | 网络连接错误 |
+| `TRANSCRIPTION_FAILED` | 500 | Groq API 错误 |
+| `INTERNAL_ERROR` | 500 | 服务器内部错误 |
 
 ### 错误示例
 
 ```typescript
-// 文件过大
+// 参数验证错误
 {
   "ok": false,
   "error": {
-    "type": "FILE_TOO_LARGE",
-    "message": "文件大小超过100MB限制",
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid request parameters",
     "details": {
-      "fileSize": 104857600,
-      "maxSize": 104857600
+      "issue_0": {
+        "code": "invalid_type",
+        "message": "fileId is required",
+        "path": "fileId"
+      }
     },
-    "timestamp": "2024-09-24T10:00:00.000Z"
+    "statusCode": 400
   }
 }
 
-// 格式不支持
+// 转录失败
 {
   "ok": false,
   "error": {
-    "type": "UNSUPPORTED_FORMAT",
-    "message": "不支持的音频格式",
+    "code": "TRANSCRIPTION_FAILED",
+    "message": "Audio transcription failed",
     "details": {
-      "fileType": "audio/unknown",
-      "supportedFormats": ["audio/mpeg", "audio/wav", "audio/mp4"]
+      "error": "Groq API timeout"
     },
-    "timestamp": "2024-09-24T10:00:00.000Z"
+    "statusCode": 500
   }
 }
 ```
@@ -216,7 +221,7 @@ class TranscriptionService {
     options: TranscribeOptions
   ): Promise<TranscriptionResult> {
     const chunks = await this.splitAudioFile(file);
-    const results: RawSegment[][] = [];
+    const results: any[] = [];
 
     // 并发处理分块
     const semaphore = new Semaphore(MAX_CONCURRENCY);
@@ -240,17 +245,31 @@ class TranscriptionService {
     fileId: string,
     chunkIndex: number,
     options: TranscribeOptions
-  ): Promise<TranscribeSuccessResponse['data']> {
-    const meta: TranscribeMeta = {
-      fileName: options.fileName || `chunk_${chunkIndex}`,
-      fileSize: chunk.size,
-      fileType: chunk.type,
-      language: options.language || 'auto',
-      chunkSeconds: options.chunkSeconds || 45,
-      overlap: options.overlap || 0.2
-    };
+  ): Promise<any> {
+    const formData = new FormData();
+    formData.append('audio', chunk);
+    formData.append('meta', JSON.stringify({
+      fileId,
+      chunkIndex
+    }));
 
-    return this.apiClient.transcribe(chunk, fileId, chunkIndex, meta);
+    const params = new URLSearchParams({
+      fileId,
+      language: options.language || 'auto'
+    });
+
+    const response = await fetch(`/api/transcribe?${params}`, {
+      method: 'POST',
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if (!result.ok) {
+      throw new Error(result.error.message);
+    }
+
+    return result.data;
   }
 
   private async splitAudioFile(file: File): Promise<Blob[]> {
@@ -267,7 +286,7 @@ class TranscriptionService {
     return chunks;
   }
 
-  private mergeResults(results: RawSegment[][]): TranscriptionResult {
+  private mergeResults(results: any[]): TranscriptionResult {
     // 实现结果合并逻辑
     const allSegments = results.flat();
     const sortedSegments = allSegments.sort((a, b) => a.start - b.start);
@@ -561,4 +580,4 @@ function useDetailedTranscription() {
 
 ---
 
-*最后更新: 2024年9月24日*
+*最后更新: 2025年1月*

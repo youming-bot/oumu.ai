@@ -51,7 +51,7 @@ export interface ApiClientOptions {
 
 // 简单的内存缓存
 interface CacheEntry {
-  data: any;
+  data: unknown;
   timestamp: number;
   ttl: number;
 }
@@ -75,7 +75,7 @@ function generateCacheKey(url: string, config: ApiRequestConfig): string {
 }
 
 // 设置缓存
-function setCache(key: string, data: any, ttl: number): void {
+function setCache(key: string, data: unknown, ttl: number): void {
   memoryCache.set(key, {
     data,
     timestamp: Date.now(),
@@ -89,7 +89,7 @@ function setCache(key: string, data: any, ttl: number): void {
 }
 
 // 获取缓存
-function getCache(key: string): any | null {
+function getCache(key: string): unknown | null {
   const entry = memoryCache.get(key);
   if (!entry) {
     return null;
@@ -110,10 +110,14 @@ export function clearApiCache(): void {
 }
 
 // 解析API响应
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 async function parseApiResponse<T>(response: Response): Promise<ApiResponse<T>> {
   try {
     const contentType = response.headers.get("content-type");
-    let data: any;
+    let data: unknown;
 
     if (contentType?.includes("application/json")) {
       data = await response.json();
@@ -128,12 +132,17 @@ async function parseApiResponse<T>(response: Response): Promise<ApiResponse<T>> 
         statusCode: response.status,
       };
     } else {
+      const message =
+        isRecord(data) && typeof data.message === "string" ? data.message : response.statusText;
+
+      const details: Record<string, unknown> = isRecord(data) ? data : { raw: data };
+
       return {
         success: false,
         error: {
           code: `HTTP_${response.status}`,
-          message: data.message || response.statusText,
-          details: data,
+          message,
+          details,
         },
         statusCode: response.status,
       };
@@ -216,10 +225,10 @@ export class ApiClient {
     if (finalConfig.method === "GET" && finalConfig.enableCache) {
       const cacheKey = finalConfig.cacheKey || generateCacheKey(fullUrl, finalConfig);
       const cachedData = getCache(cacheKey);
-      if (cachedData) {
+      if (cachedData !== null) {
         return {
           success: true,
-          data: cachedData,
+          data: cachedData as T,
           statusCode: 200,
         };
       }
@@ -261,7 +270,12 @@ export class ApiClient {
       const result = await parseApiResponse<T>(response);
 
       // 缓存成功的GET请求响应
-      if (result.success && finalConfig.method === "GET" && finalConfig.enableCache) {
+      if (
+        result.success &&
+        result.data !== undefined &&
+        finalConfig.method === "GET" &&
+        finalConfig.enableCache
+      ) {
         const cacheKey = finalConfig.cacheKey || generateCacheKey(fullUrl, finalConfig);
         setCache(cacheKey, result.data, finalConfig.cacheTTL || 60000);
       }

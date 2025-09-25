@@ -181,6 +181,18 @@ export function usePlayerDrawer(initialWidth: number = 0.666) {
     dispatch({ type: "TOGGLE_CONTROLS" });
   }, []);
 
+  const nudgeWidth = useCallback(
+    (delta: number) => {
+      const current = state.drawerSize.width;
+      const newWidth = Math.max(
+        state.drawerSize.minWidth,
+        Math.min(state.drawerSize.maxWidth, current + delta),
+      );
+      dispatch({ type: "SET_DRAWER_SIZE", payload: { width: newWidth } });
+    },
+    [state.drawerSize.maxWidth, state.drawerSize.minWidth, state.drawerSize.width],
+  );
+
   // 键盘事件处理
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -228,6 +240,7 @@ export function usePlayerDrawer(initialWidth: number = 0.666) {
       setVolume,
       toggleControls,
       showControlsBar,
+      nudgeWidth,
       handleKeyDown,
     }),
     [
@@ -239,6 +252,7 @@ export function usePlayerDrawer(initialWidth: number = 0.666) {
       setVolume,
       toggleControls,
       showControlsBar,
+      nudgeWidth,
       handleKeyDown,
     ],
   );

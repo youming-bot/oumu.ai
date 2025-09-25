@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FileUploadState, ViewState } from "@/components/types";
+import type { FileUploadState, ViewState } from "@/types/app-state";
 import { useTranscriptionManager } from "./useTranscriptionManager";
 
 export interface UseAppStateReturn {

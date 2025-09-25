@@ -10,8 +10,9 @@ Oumu.ai 使用现代化的技术栈，采用本地优先的架构设计，为开
 
 - **前端框架**: Next.js 15 + React 19 + TypeScript
 - **UI 组件**: shadcn/ui + Radix UI + Tailwind CSS
+- **主题系统**: 自定义设计令牌 + next-themes（浅色/暗色）
 - **数据存储**: IndexedDB (Dexie)
-- **AI 服务**: Groq Whisper API + OpenRouter
+- **AI 服务**: Groq Whisper API + Groq Moonshot API
 - **开发工具**: Biome.js + Jest
 
 ### 开发理念
@@ -53,9 +54,6 @@ cp .env.example .env.local
 ```env
 # .env.local
 GROQ_API_KEY=your_groq_api_key_here
-OPENROUTER_API_KEY=your_openrouter_api_key_here
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_MODEL=deepseek/deepseek-chat-v3.1:free
 ```
 
 ### 开发环境
@@ -97,36 +95,88 @@ src/
 ├── app/                    # Next.js App Router
 │   ├── api/               # API 路由
 │   │   ├── transcribe/    # 音频转录 API
+│   │   │   └── route.ts   # Groq 转录处理
 │   │   ├── postprocess/   # 文本后处理 API
+│   │   │   └── route.ts   # Groq Moonshot 处理
 │   │   └── progress/      # 进度查询 API
+│   │       └── [fileId]/
+│   │           └── route.ts # 进度跟踪
 │   ├── layout.tsx         # 根布局
 │   ├── page.tsx           # 主页面
+│   ├── player/            # 播放器页面路由
+│   │   └── [fileId]/
+│   │       └── page.tsx   # 播放器页面组件
 │   └── globals.css        # 全局样式
 ├── components/            # React 组件
-│   ├── ui/               # shadcn/ui 基础组件
-│   ├── audio-player.tsx   # 音频播放器
-│   ├── file-upload.tsx    # 文件上传
-│   ├── file-list.tsx      # 文件列表
-│   └── subtitle-display.tsx # 字幕显示
-├── hooks/                 # 自定义 React Hooks
-│   ├── useAppState.ts     # 全局状态管理
-│   ├── useAudioPlayer.ts  # 音频播放控制
-│   ├── useFiles.ts        # 文件管理
-│   └── useTranscripts.ts   # 转录管理
-├── lib/                   # 工具库
-│   ├── db.ts             # 数据库配置
-│   ├── groq-client.ts    # Groq API 客户端
-│   ├── openrouter-client.ts # OpenRouter 客户端
+│   ├── file/             # 文件管理组件
+│   │   ├── FileList.tsx  # 文件列表组件
+│   │   ├── FileUpload.tsx # 文件上传组件
+│   │   └── StatsCards.tsx # 统计卡片组件
+│   ├── player/           # 播放器组件
+│   │   ├── PlayerPage.tsx # 播放器主页面
+│   │   ├── AudioControls.tsx # 音频控制组件
+│   │   ├── VolumeControl.tsx # 音量控制组件
+│   │   ├── PlaybackSpeedControl.tsx # 播放速度控制
+│   │   └── ScrollableSubtitleDisplay.tsx # 可滚动字幕显示
+│   ├── ui/               # UI基础组件 (shadcn/ui)
+│   │   ├── button.tsx    # 按钮组件
+│   │   ├── card.tsx      # 卡片组件
+│   │   ├── dialog.tsx    # 对话框组件
+│   │   ├── input.tsx     # 输入框组件
+│   │   ├── progress.tsx  # 进度条组件
+│   │   ├── slider.tsx    # 滑块组件
+│   │   ├── switch.tsx    # 开关组件
+│   │   ├── tooltip.tsx   # 工具提示组件
+│   │   ├── ErrorBoundary.tsx # 错误边界
+│   │   ├── ErrorToast.tsx # 错误提示
+│   │   └── Navigation.tsx # 导航组件
+│   └── settings/         # 设置页面组件
+├── hooks/                # 自定义 React Hooks
+│   ├── index.ts         # Hooks导出文件
+│   ├── useAppState.ts   # 应用状态管理
+│   ├── useAudioPlayer.ts # 音频播放器逻辑
+│   ├── useFiles.ts      # 文件管理逻辑
+│   ├── useTranscripts.ts # 转录数据管理
+│   ├── useTranscriptionManager.ts # 转录管理器
+│   ├── useTranscriptionProgress.ts # 转录进度跟踪
+│   ├── useAudioPlayerTime.ts # 音频时间控制
+│   ├── useAudioPlayerControls.ts # 音频播放控制
+│   ├── useAudioPlayerState.ts # 音频播放状态
+│   ├── useFileFormatting.ts # 文件格式化
+│   ├── useFileList.ts   # 文件列表管理
+│   ├── useMemoryCleanup.ts # 内存清理
+│   └── usePlayerDrawer.ts # 播放器抽屉控制
+├── lib/                  # 工具库
+│   ├── db.ts            # Dexie数据库配置和操作
+│   ├── groq-client.ts   # Groq API客户端
+│   ├── api-response.ts  # API响应处理
+│   ├── api-client.ts    # API客户端
+│   ├── error-handler.ts # 错误处理
 │   ├── audio-processor.ts # 音频处理
-│   └── utils.ts          # 工具函数
-├── types/                 # TypeScript 类型定义
-│   ├── database.ts       # 数据库类型
-│   └── errors.ts         # 错误类型
-└── test/                  # 测试文件
-    ├── unit/             # 单元测试
-    ├── integration/      # 集成测试
-    └── diagnostic/       # 诊断测试
+│   ├── file-upload.ts   # 文件上传工具
+│   ├── export-service.ts # 导出服务
+│   ├── migration-utils.ts # 数据库迁移工具
+│   ├── retry-utils.ts   # 重试工具
+│   ├── ruby-text-processor.ts # 日语文本处理
+│   ├── server-progress.ts # 服务器进度跟踪
+│   ├── subtitle-converter.ts # 字幕转换
+│   ├── transcription-config.ts # 转录配置
+│   ├── url-manager.ts   # URL管理
+│   ├── utils.ts         # 通用工具函数
+│   └── waveform-generator.ts # 波形生成器
+└── types/                # TypeScript 类型定义
+    ├── database.ts      # 数据库模型定义
+    ├── app-state.ts     # 应用状态类型
+    └── errors.ts        # 错误类型定义
 ```
+
+## 样式与主题
+
+- **设计令牌来源**: `src/app/globals.css` 定义品牌色、语义状态色、阴影、圆角与间距等变量。所有组件应优先使用这些 CSS 变量而非硬编码。
+- **主题切换**: 借助 `next-themes`，仅支持 `light` / `dark` / `system` 三种模式；注意保持 variables 在 `.dark` 作用域下同步更新。
+- **组件样式**: 复用 Tailwind `@apply` 生成的组件类（例如 `.stats-card`、`.file-card-action`），避免在组件内重复定义相同的外观规则。
+- **状态颜色**: 通过 `--state-*-*` 变量（文本、背景、边框）驱动 Success/Warning/Error/Info 四种语义色；若需要新的状态，请在变量区补充而非直接写颜色值。
+- **按钮规范**: 文件卡片的操作按钮（删除、重试、播放）统一使用 `.file-card-action` 模式，确保 hover/焦点 与 阴影表现一致；如需新增操作，请继承该类后在 `.file-card-action--*` 中扩展。
 
 ## 开发工作流
 
@@ -273,21 +323,23 @@ export interface FileRow {
   size: number;
   type: string;
   blob: Blob;
-  uploadedAt: Date;
   duration?: number;
-  transcriptionStatus: ProcessingStatus;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class AppDatabase extends Dexie {
   files!: Table<FileRow, number>;
   transcripts!: Table<TranscriptRow, number>;
+  segments!: Table<Segment, number>;
 
   constructor() {
     super('OumuDatabase');
 
     this.version(3).stores({
-      files: '++id,name,size,type,uploadedAt,transcriptionStatus',
-      transcripts: '++id,fileId,rawText,processingStatus,createdAt,updatedAt'
+      files: '++id,name,size,type,createdAt,updatedAt',
+      transcripts: '++id,fileId,status,createdAt,updatedAt',
+      segments: '++id,transcriptId,start,end,createdAt,updatedAt,wordTimestamps'
     });
   }
 }
@@ -360,7 +412,85 @@ chore: update dependencies
 - [React 文档](https://react.dev/)
 - [TypeScript 文档](https://www.typescriptlang.org/docs/)
 - [shadcn/ui 文档](https://ui.shadcn.com/)
+- [Groq 文档](https://console.groq.com/docs)
+- [Dexie 文档](https://dexie.org/)
+
+## 环境配置
+
+### 环境变量
+
+```env
+# .env.local
+GROQ_API_KEY=your_groq_api_key_here
+
+# 音频处理配置
+MAX_CONCURRENCY=3
+CHUNK_SECONDS=45
+CHUNK_OVERLAP=0.2
+```
+
+### 开发配置
+
+```typescript
+// next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    // 实验性功能
+  },
+  // 其他配置
+};
+
+export default nextConfig;
+```
+
+## 调试和测试
+
+### 调试工具
+
+- **React Developer Tools**: React 组件调试
+- **Chrome DevTools**: 浏览器调试
+- **IndexedDB 查看器**: 本地数据库调试
+
+### 测试策略
+
+```typescript
+// 测试配置
+// jest.config.js
+module.exports = {
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testPathIgnorePatterns: [
+    '<rootDir>/.next/',
+    '<rootDir>/node_modules/'
+  ],
+  moduleNameMapping: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+};
+```
+
+### 错误处理
+
+```typescript
+// 错误处理中间件
+export function withErrorHandler(handler: Function) {
+  return async (req: NextRequest, ...args: any[]) => {
+    try {
+      return await handler(req, ...args);
+    } catch (error) {
+      console.error('API Error:', error);
+      return apiError({
+        code: 'INTERNAL_ERROR',
+        message: 'Internal server error',
+        details: error instanceof Error ? error.message : String(error),
+        statusCode: 500,
+      });
+    }
+  };
+}
+```
 
 ---
 
-*最后更新: 2024年9月24日*
+*最后更新: 2025年1月*

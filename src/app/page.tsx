@@ -1,12 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import FileList from "@/components/file-list-new";
-import FileUploadArea from "@/components/file-upload-area-new";
-import Navigation from "@/components/navigation-new";
-import SettingsPage from "@/components/settings-page";
-import StatsCards from "@/components/stats-cards";
+import { useCallback, useState } from "react";
+import FileList from "@/components/file/FileList";
+import FileUpload from "@/components/file/FileUpload";
+import StatsCards from "@/components/file/StatsCards";
+import SettingsPage from "@/components/settings/SettingsPage";
+import Navigation from "@/components/ui/Navigation";
 import { useAppState, useFiles, useTranscriptionManager, useTranscripts } from "@/hooks";
 
 export default function HomePage() {
@@ -83,12 +83,12 @@ export default function HomePage() {
       case "files":
         return (
           <div className="flex-1 px-4 py-8 sm:px-6 lg:px-8 mt-24">
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-4xl">
               <div className="space-y-8">
                 <StatsCards />
 
                 <div className="mb-8">
-                  <FileUploadArea
+                  <FileUpload
                     onFilesSelected={handleFilesSelected}
                     isUploading={isUploading}
                     uploadProgress={uploadProgress}
@@ -114,7 +114,7 @@ export default function HomePage() {
       case "settings":
         return (
           <div className="flex-1 px-4 py-8 sm:px-6 lg:px-8 mt-24">
-            <div className="mx-auto max-w-5xl">
+            <div className="mx-auto max-w-4xl">
               <SettingsPage />
             </div>
           </div>

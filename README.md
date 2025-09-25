@@ -4,11 +4,11 @@
 
 ## 🚀 功能特点
 
-- **音频转录**: 使用 Groq Whisper API 进行高质量语音识别
-- **文本处理**: 通过 OpenRouter LLM 进行文本标准化和注释
-- **精确同步**: 单词级别的时间戳同步，支持A-B循环功能
+- **音频转录**: 使用 Groq Whisper-large-v3-turbo API 进行高质量语音识别
+- **文本处理**: 通过 Groq Moonshot 模型进行文本标准化和注释
+- **精确同步**: 段落级别的时间戳同步，支持A-B循环功能
 - **本地存储**: 所有用户数据存储在本地 IndexedDB 中，保护隐私
-- **响应式设计**: 基于 shadcn/ui 的现代化界面设计
+- **统一主题**: 设计令牌驱动的浅色/暗色外观，包含语义状态色
 - **渐进式Web应用**: 支持离线使用和安装到桌面
 
 ## 📋 项目状态
@@ -18,11 +18,11 @@
 ### ✅ 已完成功能
 - 核心架构：Next.js 15 + React 19 + TypeScript + shadcn/ui
 - 数据库层：Dexie (IndexedDB) 支持迁移（版本1-3）
-- API 路由：`/api/transcribe`（Groq）、`/api/postprocess`（OpenRouter）、`/api/progress`
+- API 路由：`/api/transcribe`（Groq）、`/api/postprocess`（Groq Moonshot）、`/api/progress`
 - UI 组件：音频播放器、字幕显示、文件上传
 - 错误处理：统一的错误处理框架
 - 自定义 Hooks：模块化的状态管理
-- 单词级别时间戳：精确的字幕同步
+- 段落级别时间戳：精确的字幕同步
 - 安全性：XSS 防护、无服务器端数据持久化
 
 ### ⚠️ 已知问题
@@ -33,8 +33,8 @@
 ## ✨ 核心特性
 
 - 🎵 **本地音频存储**：所有文件存储在浏览器IndexedDB中，保护隐私
-- 🗣️ **智能语音转录**：集成Groq Whisper-large-v3进行高质量转录
-- 🔄 **文本智能处理**：OpenRouter LLM进行分句规范化、翻译和标注
+- 🗣️ **智能语音转录**：集成Groq Whisper-large-v3-turbo进行高质量转录
+- 🔄 **文本智能处理**：Groq Moonshot模型进行分句规范化、翻译和标注
 - ⏯️ **高级播放控制**：支持A-B循环、变速播放、精确定位
 - 📝 **实时字幕同步**：毫秒级字幕同步和高亮显示
 - 🎯 **跟读练习模式**：点击句子自动循环播放，专为语言学习设计
@@ -45,15 +45,16 @@
 
 - **前端**: Next.js 15, React 19, TypeScript
 - **UI 组件**: shadcn/ui, Radix UI, Tailwind CSS
+- **主题系统**: 自定义设计令牌 + next-themes（浅色/暗色/系统）
 - **数据库**: IndexedDB (Dexie)
-- **AI 服务**: Groq Whisper API, OpenRouter LLM
+- **AI 服务**: Groq Whisper API, Groq Moonshot API
 - **样式**: Tailwind CSS
 - **开发工具**: Biome.js, Jest
 
 ### 数据流架构
 
 ```
-用户上传音频 → IndexedDB存储 → 分片处理 → Groq转录 → OpenRouter后处理 → 字幕同步播放
+用户上传音频 → IndexedDB存储 → 分片处理 → Groq转录 → Groq Moonshot后处理 → 字幕同步播放
      ↓              ↓           ↓          ↓            ↓              ↓
   文件管理      本地持久化     并发控制    语音识别    智能标注        跟读练习
 ```
@@ -76,11 +77,6 @@ pnpm install
 ```env
 # Groq API 用于语音转录
 GROQ_API_KEY=your_groq_api_key
-
-# OpenRouter API 用于文本处理
-OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_MODEL=deepseek/deepseek-chat-v3.1:free
 
 # 音频处理配置
 MAX_CONCURRENCY=3
@@ -146,11 +142,11 @@ pnpm check
 
 ## 🤝 贡献
 
-欢迎贡献！请查看 [贡献指南](docs/DEVELOPMENT/CONTRIBUTING.md) 了解详细信息。
+欢迎贡献！请先阅读 [开发指南](docs/DEVELOPMENT/README.md) 并按照其中的流程提交变更。
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
+本项目采用 ISC 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
 ## 📞 联系
 

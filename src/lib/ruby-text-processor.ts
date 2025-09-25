@@ -42,47 +42,132 @@ function detectCharacterType(char: string): {
  */
 function hiraganaToRomaji(hiragana: string): string {
   const romajiMap: Record<string, string> = {
-    'あ': 'a', 'い': 'i', 'う': 'u', 'え': 'e', 'お': 'o',
-    'か': 'ka', 'き': 'ki', 'く': 'ku', 'け': 'ke', 'こ': 'ko',
-    'が': 'ga', 'ぎ': 'gi', 'ぐ': 'gu', 'げ': 'ge', 'ご': 'go',
-    'さ': 'sa', 'し': 'shi', 'す': 'su', 'せ': 'se', 'そ': 'so',
-    'ざ': 'za', 'じ': 'ji', 'ず': 'zu', 'ぜ': 'ze', 'ぞ': 'zo',
-    'た': 'ta', 'ち': 'chi', 'つ': 'tsu', 'て': 'te', 'と': 'to',
-    'だ': 'da', 'ぢ': 'ji', 'づ': 'zu', 'で': 'de', 'ど': 'do',
-    'な': 'na', 'に': 'ni', 'ぬ': 'nu', 'ね': 'ne', 'の': 'no',
-    'は': 'ha', 'ひ': 'hi', 'ふ': 'fu', 'へ': 'he', 'ほ': 'ho',
-    'ば': 'ba', 'び': 'bi', 'ぶ': 'bu', 'べ': 'be', 'ぼ': 'bo',
-    'ぱ': 'pa', 'ぴ': 'pi', 'ぷ': 'pu', 'ぺ': 'pe', 'ぽ': 'po',
-    'ま': 'ma', 'み': 'mi', 'む': 'mu', 'め': 'me', 'も': 'mo',
-    'や': 'ya', 'ゆ': 'yu', 'よ': 'yo',
-    'ら': 'ra', 'り': 'ri', 'る': 'ru', 'れ': 're', 'ろ': 'ro',
-    'わ': 'wa', 'を': 'wo', 'ん': 'n',
-    'ぁ': 'a', 'ぃ': 'i', 'ぅ': 'u', 'ぇ': 'e', 'ぉ': 'o',
-    'ゃ': 'ya', 'ゅ': 'yu', 'ょ': 'yo',
-    'っ': '',
-    'ー': '-',
+    あ: "a",
+    い: "i",
+    う: "u",
+    え: "e",
+    お: "o",
+    か: "ka",
+    き: "ki",
+    く: "ku",
+    け: "ke",
+    こ: "ko",
+    が: "ga",
+    ぎ: "gi",
+    ぐ: "gu",
+    げ: "ge",
+    ご: "go",
+    さ: "sa",
+    し: "shi",
+    す: "su",
+    せ: "se",
+    そ: "so",
+    ざ: "za",
+    じ: "ji",
+    ず: "zu",
+    ぜ: "ze",
+    ぞ: "zo",
+    た: "ta",
+    ち: "chi",
+    つ: "tsu",
+    て: "te",
+    と: "to",
+    だ: "da",
+    ぢ: "ji",
+    づ: "zu",
+    で: "de",
+    ど: "do",
+    な: "na",
+    に: "ni",
+    ぬ: "nu",
+    ね: "ne",
+    の: "no",
+    は: "ha",
+    ひ: "hi",
+    ふ: "fu",
+    へ: "he",
+    ほ: "ho",
+    ば: "ba",
+    び: "bi",
+    ぶ: "bu",
+    べ: "be",
+    ぼ: "bo",
+    ぱ: "pa",
+    ぴ: "pi",
+    ぷ: "pu",
+    ぺ: "pe",
+    ぽ: "po",
+    ま: "ma",
+    み: "mi",
+    む: "mu",
+    め: "me",
+    も: "mo",
+    や: "ya",
+    ゆ: "yu",
+    よ: "yo",
+    ら: "ra",
+    り: "ri",
+    る: "ru",
+    れ: "re",
+    ろ: "ro",
+    わ: "wa",
+    を: "wo",
+    ん: "n",
+    ぁ: "a",
+    ぃ: "i",
+    ぅ: "u",
+    ぇ: "e",
+    ぉ: "o",
+    ゃ: "ya",
+    ゅ: "yu",
+    ょ: "yo",
+    っ: "",
+    ー: "-",
   };
 
   // 处理拗音
   const smallTsuRegex = /(っ)([かきくけこさしすせそたちつてとはひふへほぱぴぷぺぽ])/g;
   const sokuonMap: Record<string, string> = {
-    'か': 'k', 'き': 'k', 'く': 'k', 'け': 'k', 'こ': 'k',
-    'さ': 's', 'し': 'sh', 'す': 's', 'せ': 's', 'そ': 's',
-    'た': 't', 'ち': 'ch', 'つ': 'ts', 'て': 't', 'と': 't',
-    'は': 'h', 'ひ': 'h', 'ふ': 'f', 'へ': 'h', 'ほ': 'h',
-    'ぱ': 'p', 'ぴ': 'p', 'ぷ': 'p', 'ぺ': 'p', 'ぽ': 'p',
+    か: "k",
+    き: "k",
+    く: "k",
+    け: "k",
+    こ: "k",
+    さ: "s",
+    し: "sh",
+    す: "s",
+    せ: "s",
+    そ: "s",
+    た: "t",
+    ち: "ch",
+    つ: "ts",
+    て: "t",
+    と: "t",
+    は: "h",
+    ひ: "h",
+    ふ: "f",
+    へ: "h",
+    ほ: "h",
+    ぱ: "p",
+    ぴ: "p",
+    ぷ: "p",
+    ぺ: "p",
+    ぽ: "p",
   };
 
   let result = hiragana;
 
   // 处理促音
-  result = result.replace(smallTsuRegex, (match, smallTsu, nextChar) => {
+  result = result.replace(smallTsuRegex, (_match, _smallTsu, nextChar) => {
     const sokuon = sokuonMap[nextChar] || nextChar.charAt(0);
     return sokuon;
   });
 
   // 转换单个字符
-  result = result.split('').map(char => romajiMap[char] || char).join('');
+  result = result
+    .split("")
+    .map((char) => romajiMap[char] || char)
+    .join("");
 
   return result;
 }
@@ -93,27 +178,93 @@ function hiraganaToRomaji(hiragana: string): string {
 function katakanaToRomaji(katakana: string): string {
   // 将片假名转换为平假名，然后使用平假名转换函数
   const katakanaToHiraganaMap: Record<string, string> = {
-    'ア': 'あ', 'イ': 'い', 'ウ': 'う', 'エ': 'え', 'オ': 'お',
-    'カ': 'か', 'キ': 'き', 'ク': 'く', 'ケ': 'け', 'コ': 'こ',
-    'ガ': 'が', 'ギ': 'ぎ', 'グ': 'ぐ', 'ゲ': 'げ', 'ゴ': 'ご',
-    'サ': 'さ', 'シ': 'し', 'ス': 'す', 'セ': 'せ', 'ソ': 'そ',
-    'ザ': 'ざ', 'ジ': 'じ', 'ズ': 'ず', 'ゼ': 'ぜ', 'ゾ': 'ぞ',
-    'タ': 'た', 'チ': 'ち', 'ツ': 'つ', 'テ': 'て', 'ト': 'と',
-    'ダ': 'だ', 'ヂ': 'ぢ', 'ヅ': 'づ', 'デ': 'で', 'ド': 'ど',
-    'ナ': 'な', 'ニ': 'に', 'ヌ': 'ぬ', 'ネ': 'ね', 'ノ': 'の',
-    'ハ': 'は', 'ヒ': 'ひ', 'フ': 'ふ', 'ヘ': 'へ', 'ホ': 'ほ',
-    'バ': 'ば', 'ビ': 'び', 'ブ': 'ぶ', 'ベ': 'べ', 'ボ': 'ぼ',
-    'パ': 'ぱ', 'ピ': 'ぴ', 'プ': 'ぷ', 'ペ': 'ぺ', 'ポ': 'ぽ',
-    'マ': 'ま', 'ミ': 'み', 'ム': 'む', 'メ': 'め', 'モ': 'も',
-    'ヤ': 'や', 'ユ': 'ゆ', 'ヨ': 'よ',
-    'ラ': 'ら', 'リ': 'り', 'ル': 'る', 'レ': 'れ', 'ロ': 'ろ',
-    'ワ': 'わ', 'ヲ': 'を', 'ン': 'ん',
-    'ァ': 'ぁ', 'ィ': 'ぃ', 'ゥ': 'ぅ', 'ェ': 'ぇ', 'ォ': 'ぉ',
-    'ャ': 'ゃ', 'ュ': 'ゅ', 'ョ': 'ょ',
-    'ッ': 'っ', 'ー': 'ー',
+    ア: "あ",
+    イ: "い",
+    ウ: "う",
+    エ: "え",
+    オ: "お",
+    カ: "か",
+    キ: "き",
+    ク: "く",
+    ケ: "け",
+    コ: "こ",
+    ガ: "が",
+    ギ: "ぎ",
+    グ: "ぐ",
+    ゲ: "げ",
+    ゴ: "ご",
+    サ: "さ",
+    シ: "し",
+    ス: "す",
+    セ: "せ",
+    ソ: "そ",
+    ザ: "ざ",
+    ジ: "じ",
+    ズ: "ず",
+    ゼ: "ぜ",
+    ゾ: "ぞ",
+    タ: "た",
+    チ: "ち",
+    ツ: "つ",
+    テ: "て",
+    ト: "と",
+    ダ: "だ",
+    ヂ: "ぢ",
+    ヅ: "づ",
+    デ: "で",
+    ド: "ど",
+    ナ: "な",
+    ニ: "に",
+    ヌ: "ぬ",
+    ネ: "ね",
+    ノ: "の",
+    ハ: "は",
+    ヒ: "ひ",
+    フ: "ふ",
+    ヘ: "へ",
+    ホ: "ほ",
+    バ: "ば",
+    ビ: "び",
+    ブ: "ぶ",
+    ベ: "べ",
+    ボ: "ぼ",
+    パ: "ぱ",
+    ピ: "ぴ",
+    プ: "ぷ",
+    ペ: "ぺ",
+    ポ: "ぽ",
+    マ: "ま",
+    ミ: "み",
+    ム: "む",
+    メ: "め",
+    モ: "も",
+    ヤ: "や",
+    ユ: "ゆ",
+    ヨ: "よ",
+    ラ: "ら",
+    リ: "り",
+    ル: "る",
+    レ: "れ",
+    ロ: "ろ",
+    ワ: "わ",
+    ヲ: "を",
+    ン: "ん",
+    ァ: "ぁ",
+    ィ: "ぃ",
+    ゥ: "ぅ",
+    ェ: "ぇ",
+    ォ: "ぉ",
+    ャ: "ゃ",
+    ュ: "ゅ",
+    ョ: "ょ",
+    ッ: "っ",
+    ー: "ー",
   };
 
-  const hiragana = katakana.split('').map(char => katakanaToHiraganaMap[char] || char).join('');
+  const hiragana = katakana
+    .split("")
+    .map((char) => katakanaToHiraganaMap[char] || char)
+    .join("");
   return hiraganaToRomaji(hiragana);
 }
 
@@ -139,14 +290,14 @@ function parseFuriganaData(text: string, furigana?: string): RubyCharacter[] {
 
   // 简单的假名解析逻辑（这里需要根据实际数据格式调整）
   // 假设假名格式是 "漢字|かんじ" 的形式
-  const furiganaEntries = furigana.split(' ');
+  const furiganaEntries = furigana.split(" ");
   let furiganaIndex = 0;
 
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     const charType = detectCharacterType(char);
 
-    let rubyChar: RubyCharacter = {
+    const rubyChar: RubyCharacter = {
       character: char,
       isKanji: charType.isKanji,
       isHiragana: charType.isHiragana,
@@ -156,7 +307,7 @@ function parseFuriganaData(text: string, furigana?: string): RubyCharacter[] {
     // 为汉字添加假名
     if (charType.isKanji && furiganaIndex < furiganaEntries.length) {
       const entry = furiganaEntries[furiganaIndex];
-      const parts = entry.split('|');
+      const parts = entry.split("|");
       if (parts.length === 2 && parts[0] === char) {
         rubyChar.furigana = parts[1];
         furiganaIndex++;
@@ -173,7 +324,7 @@ function parseFuriganaData(text: string, furigana?: string): RubyCharacter[] {
  * 生成罗马音
  */
 function generateRomaji(characters: RubyCharacter[]): string {
-  let romaji = '';
+  let romaji = "";
 
   for (const char of characters) {
     if (char.furigana) {
@@ -225,7 +376,9 @@ export function processWordRuby(
 
   return {
     text: word,
-    reading: characters.some(c => c.furigana) ? characters.map(c => c.furigana || c.character).join('') : undefined,
+    reading: characters.some((c) => c.furigana)
+      ? characters.map((c) => c.furigana || c.character).join("")
+      : undefined,
     romaji,
     characters,
     startTime: wordTimestamp?.start,
@@ -241,7 +394,7 @@ export function processSegmentRuby(segment: Segment): RubyWord[] {
   const rubyWords: RubyWord[] = [];
 
   // 假设假名数据存储在 segment.furigana 中，格式为每个词的假名用空格分隔
-  const furiganaWords = segment.furigana?.split(' ') || [];
+  const furiganaWords = segment.furigana?.split(" ") || [];
 
   words.forEach((word, index) => {
     const wordTimestamp = segment.wordTimestamps?.[index];
@@ -286,32 +439,47 @@ export function getHighlightedCharacters(
 /**
  * 格式化ruby文本为HTML
  */
-export function formatRubyToHTML(rubyWords: RubyWord[], highlightedChar?: { wordIndex: number; charIndex: number }): string {
-  return rubyWords.map((word, wordIndex) => {
-    const isHighlighted = highlightedChar?.wordIndex === wordIndex;
+export function formatRubyToHTML(
+  rubyWords: RubyWord[],
+  highlightedChar?: { wordIndex: number; charIndex: number },
+): string {
+  return rubyWords
+    .map((word, wordIndex) => {
+      const isHighlighted = highlightedChar?.wordIndex === wordIndex;
 
-    const charactersHTML = word.characters.map((char, charIndex) => {
-      const isCharHighlighted = isHighlighted && charIndex === highlightedChar?.charIndex;
+      const charactersHTML = word.characters
+        .map((char, charIndex) => {
+          const isCharHighlighted = isHighlighted && charIndex === highlightedChar?.charIndex;
 
-      if (char.furigana) {
-        return `<ruby class="${isCharHighlighted ? 'text-blue-600 font-bold' : ''}">
-          <span class="${isCharHighlighted ? 'bg-blue-100' : ''}">${char.character}</span>
-          <rt class="text-xs ${isCharHighlighted ? 'text-blue-600' : 'text-gray-600'}">${char.furigana}</rt>
+          if (char.furigana) {
+            return `<ruby class="${isCharHighlighted ? "text-[var(--state-info-text)] font-bold dark:text-[var(--state-info-strong)]" : ""}">
+          <span class="${isCharHighlighted ? "bg-[var(--state-info-surface)]" : ""}">${char.character}</span>
+          <rt class="text-xs ${
+            isCharHighlighted
+              ? "text-[var(--state-info-text)] dark:text-[var(--state-info-strong)]"
+              : "text-[var(--text-secondary)]"
+          }">${char.furigana}</rt>
         </ruby>`;
-      }
+          }
 
-      return `<span class="${isCharHighlighted ? 'bg-blue-100 text-blue-600 font-bold' : ''}">${char.character}</span>`;
-    }).join('');
+          return `<span class="${
+            isCharHighlighted
+              ? "bg-[var(--state-info-surface)] text-[var(--state-info-text)] font-bold dark:text-[var(--state-info-strong)]"
+              : ""
+          }">${char.character}</span>`;
+        })
+        .join("");
 
-    return `<span class="inline-block mx-1">${charactersHTML}</span>`;
-  }).join('');
+      return `<span class="inline-block mx-1">${charactersHTML}</span>`;
+    })
+    .join("");
 }
 
 /**
  * 获取罗马音文本
  */
 export function getRomajiText(rubyWords: RubyWord[]): string {
-  return rubyWords.map(word => word.romaji || word.text).join(' ');
+  return rubyWords.map((word) => word.romaji || word.text).join(" ");
 }
 
 /**

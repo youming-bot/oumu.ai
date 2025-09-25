@@ -72,7 +72,7 @@ export function logError(error: AppError, context?: string): void {
     component: context,
     additional: {
       ...(error.details || {}),
-      stack: (error as any).stack,
+      stack: getErrorStack(error),
     },
   };
 
@@ -218,7 +218,7 @@ function logErrorLocally(error: AppError, context: ErrorContext): void {
       message: error.message,
       code: error.code,
       context,
-      stack: (error as any).stack,
+      stack: getErrorStack(error),
     };
 
     logs.push(entry);
@@ -252,6 +252,16 @@ function generateErrorId(): string {
   return `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+function getErrorStack(error: unknown): string | undefined {
+  if (typeof error === "object" && error !== null && "stack" in error) {
+    const stack = (error as { stack?: unknown }).stack;
+    if (typeof stack === "string") {
+      return stack;
+    }
+  }
+  return undefined;
+}
+
 // 带重试的错误处理
 export async function handleWithRetry<T>(
   fn: () => Promise<T>,
@@ -270,13 +280,13 @@ export async function handleWithRetry<T>(
     ...retryOptions,
   });
 
-  if (!result.success) {
+  if (!result.success || result.data === undefined) {
     const appError = handleError(result.error, context);
     showErrorToast(appError);
     throw appError;
   }
 
-  return result.data!;
+  return result.data;
 }
 
 // 处理并显示错误（UI友好的错误处理）
@@ -337,15 +347,6 @@ export async function withErrorRecovery<T>(
       throw recoveryAppError;
     }
   }
-}
-
-// 错误统计和分析
-interface ErrorStats {
-  totalErrors: number;
-  errorsByCode: Record<string, number>;
-  errorsByComponent: Record<string, number>;
-  lastErrorTime?: number;
-  errorFrequency: number; // errors per hour
 }
 
 // 获取错误统计
@@ -435,7 +436,7 @@ export async function handleBatchErrors<T>(
 
 // 错误监控装饰器
 export function withErrorMonitoring(
-  target: any,
+  target: object,
   propertyKey: string,
   descriptor: PropertyDescriptor,
 ): void {

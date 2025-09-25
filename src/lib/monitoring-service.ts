@@ -514,22 +514,23 @@ export class MonitoringService implements ExtendedErrorMonitor {
   private setupConsoleCapture(): void {
     if (!this.config.enableConsoleCapture) return;
 
-    const originalConsoleError = console.error;
-    const originalConsoleWarn = console.warn;
-    const originalConsoleInfo = console.info;
+    const consoleApi = globalThis.console;
+    const originalConsoleError = consoleApi.error.bind(consoleApi);
+    const originalConsoleWarn = consoleApi.warn.bind(consoleApi);
+    const originalConsoleInfo = consoleApi.info.bind(consoleApi);
 
-    console.error = (...args) => {
-      originalConsoleError.apply(console, args);
+    globalThis.console.error = (...args) => {
+      originalConsoleError(...args);
       this.logCustomEvent("console", "error", { args: args.map((arg) => String(arg)) });
     };
 
-    console.warn = (...args) => {
-      originalConsoleWarn.apply(console, args);
+    globalThis.console.warn = (...args) => {
+      originalConsoleWarn(...args);
       this.logCustomEvent("console", "warn", { args: args.map((arg) => String(arg)) });
     };
 
-    console.info = (...args) => {
-      originalConsoleInfo.apply(console, args);
+    globalThis.console.info = (...args) => {
+      originalConsoleInfo(...args);
       this.logCustomEvent("console", "info", { args: args.map((arg) => String(arg)) });
     };
   }

@@ -6,14 +6,12 @@ import { handleSilently } from "./error-handler";
 
 // 向后兼容：保留 URLManager 类别名
 // biome-ignore lint/complexity/noStaticOnlyClass: Backward compatibility for existing code
-// biome-ignore lint/style/useNamingConvention: Backward compatibility for existing code
 class URLManager {
   static createObjectUrl(blob: Blob): string {
     return createObjectUrl(blob);
   }
 
   // 兼容旧的方法名
-  // biome-ignore lint/style/useNamingConvention: Backward compatibility for existing code
   static createObjectURL(blob: Blob): string {
     return createObjectUrl(blob);
   }
@@ -22,7 +20,6 @@ class URLManager {
     revokeObjectUrl(url);
   }
 
-  // biome-ignore lint/style/useNamingConvention: Backward compatibility method
   static revokeObjectURL(url: string): void {
     revokeObjectUrl(url);
   }
@@ -31,7 +28,6 @@ class URLManager {
     return createTemporaryUrl(blob, autoRevokeAfter);
   }
 
-  // biome-ignore lint/style/useNamingConvention: Backward compatibility method
   static createTemporaryURL(blob: Blob, autoRevokeAfter?: number): string {
     return createTemporaryUrl(blob, autoRevokeAfter);
   }
@@ -44,7 +40,6 @@ class URLManager {
     revokeAllUrls();
   }
 
-  // biome-ignore lint/style/useNamingConvention: Backward compatibility method
   static revokeAllURLs(): void {
     revokeAllUrls();
   }

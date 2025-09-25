@@ -23,9 +23,6 @@
 ### 💻 开发指南
 - **适合参与项目的开发者**
 - [开发指南](DEVELOPMENT/README.md)
-- [环境设置](DEVELOPMENT/SETUP.md)
-- [测试指南](DEVELOPMENT/TESTING.md)
-- [贡献指南](DEVELOPMENT/CONTRIBUTING.md)
 
 ### 👥 用户指南
 - **适合应用程序的最终用户**
@@ -49,7 +46,7 @@
 查看 [架构设计](ARCHITECTURE.md) 了解系统设计。
 
 ### 计划贡献？
-阅读 [开发指南](DEVELOPMENT/README.md) 和 [贡献指南](DEVELOPMENT/CONTRIBUTING.md)。
+阅读 [开发指南](DEVELOPMENT/README.md) 了解开发流程。
 
 ### 需要集成 API？
 查看 [API 概览](API/README.md) 了解完整的 API 文档。
@@ -61,8 +58,8 @@
 
 Oumu.ai 是一个基于Web的阴影学习（shadowing）应用，支持音频转录、文本处理和语言学习功能。使用 Next.js 15、React 19、TypeScript 和 shadcn/ui 构建，提供：
 
-- **音频处理**: 基于 Groq Whisper 的分块音频转录
-- **文本处理**: OpenRouter 支持的 AI 文本标准化
+- **音频处理**: 基于 Groq Whisper-large-v3-turbo 的分块音频转录
+- **文本处理**: Groq Moonshot 模型支持的 AI 文本标准化
 - **交互式学习**: 同步字幕和 A-B 循环功能
 - **现代 UI**: 响应式设计，使用 shadcn/ui 组件
 - **离线支持**: 使用 IndexedDB 进行本地数据持久化
@@ -73,8 +70,8 @@ Oumu.ai 是一个基于Web的阴影学习（shadowing）应用，支持音频转
 
 ### 核心功能
 - 音频上传和本地存储
-- 智能语音转录（Groq Whisper）
-- 文本标准化和处理（OpenRouter）
+- 智能语音转录（Groq Whisper-large-v3-turbo）
+- 文本标准化和处理（Groq Moonshot）
 - 精确的字幕同步
 - A-B 循环和变速播放
 - 术语管理和自定义翻译
@@ -95,7 +92,7 @@ Oumu.ai 是一个基于Web的阴影学习（shadowing）应用，支持音频转
 
 ## 📄 许可证
 
-本项目采用 MIT 许可证。查看项目仓库了解详情。
+本项目采用 ISC 许可证。查看项目仓库了解详情。
 
 ## 🔄 文档更新
 
@@ -106,4 +103,4 @@ Oumu.ai 是一个基于Web的阴影学习（shadowing）应用，支持音频转
 
 ---
 
-*最后更新: 2024年9月24日 | 文档重新组织和标准化完成*
+*最后更新: 2025年1月 | 文档重新组织和标准化完成*

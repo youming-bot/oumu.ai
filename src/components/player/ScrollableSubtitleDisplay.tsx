@@ -95,6 +95,10 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
     }, [segments, safeCurrentTime]);
 
     useEffect(() => {
+      if (!isPlaying) {
+        return;
+      }
+
       if (!containerRef.current || !activeSegmentRef.current) {
         return;
       }
@@ -125,7 +129,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
           behavior: "smooth",
         });
       }
-    }, [findActiveSegmentIndex]);
+    }, [findActiveSegmentIndex, isPlaying]);
 
     const activeIndex = findActiveSegmentIndex();
 
@@ -198,10 +202,10 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                 }}
                 data-testid="subtitle-card"
                 data-active={isActive}
-                className={cn("player-subtitle-line", isActive && "highlight")}
+                className={cn("subtitle-line", isActive && "highlight")}
               >
                 {hasTokens ? (
-                  <div className="player-subtitle-words">
+                  <div className="flex flex-wrap items-end">
                     {tokens.map((token, tokenIndex) => {
                       const isTokenActive =
                         isActive &&
@@ -211,19 +215,17 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                         safeCurrentTime <= token.end;
 
                       return (
-                        <span
+                        <div
                           key={`${segment.id ?? index}-token-${tokenIndex}-${token.word}`}
-                          className={cn("player-word-group", isTokenActive && "active")}
+                          className="word-group"
                           data-testid={isTokenActive ? "active-word" : undefined}
                         >
                           <ruby>
                             <span className="player-word-surface">{token.word}</span>
                             {token.reading && <rt>{token.reading}</rt>}
                           </ruby>
-                          {token.romaji && (
-                            <span className="player-romaji-word">{token.romaji}</span>
-                          )}
-                        </span>
+                          {token.romaji && <span className="romaji-word">{token.romaji}</span>}
+                        </div>
                       );
                     })}
                   </div>
@@ -231,7 +233,10 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                   <div className="space-y-2">
                     {lines.length > 0 ? (
                       lines.map((line, lineIndex) => (
-                        <p key={`${segment.id ?? index}-line-${lineIndex}`} className="player-subtitle-plain">
+                        <p
+                          key={`${segment.id ?? index}-line-${lineIndex}`}
+                          className="player-subtitle-plain"
+                        >
                           {line}
                         </p>
                       ))
@@ -241,9 +246,7 @@ const ScrollableSubtitleDisplay = React.memo<ScrollableSubtitleDisplayProps>(
                   </div>
                 )}
 
-                {segment.translation && (
-                  <p className="player-translation">{segment.translation}</p>
-                )}
+                {segment.translation && <p className="player-translation">{segment.translation}</p>}
               </div>
             );
           })

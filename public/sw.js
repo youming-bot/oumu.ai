@@ -2,8 +2,7 @@ const CACHE_NAME = 'shadowing-learning-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/icon.png',
 ];
 
 // Install a service worker
