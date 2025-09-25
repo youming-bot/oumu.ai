@@ -1,5 +1,5 @@
-import Groq from 'groq-sdk';
-import type { AudioChunk } from './audio-processor';
+import Groq from "groq-sdk";
+import type { AudioChunk } from "./audio-processor";
 
 export interface GroqTranscriptionResponse {
   text: string;
@@ -26,22 +26,43 @@ export interface GroqTranscriptionOptions {
   language?: string;
   prompt?: string;
   // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
-  response_format?: 'json' | 'text' | 'verbose_json';
+  response_format?: "json" | "text" | "verbose_json";
   temperature?: number;
   onProgress?: (progress: {
     chunkIndex: number;
     totalChunks: number;
-    status: 'pending' | 'processing' | 'completed' | 'failed';
+    status: "pending" | "processing" | "completed" | "failed";
     progress: number;
     error?: string;
   }) => void;
 }
 
 export class GroqClient {
-  private client: Groq;
+  private client: any;
 
-  constructor(apiKey: string = process.env.GROQ_API_KEY || '') {
+  constructor(apiKey: string = process.env.GROQ_API_KEY || "") {
     this.client = new Groq({ apiKey });
+  }
+
+  async transcribe(
+    file: File,
+    options: {
+      language?: string;
+      model?: string;
+      responseFormat?: string;
+      temperature?: number;
+    } = {},
+  ): Promise<GroqTranscriptionResponse> {
+    const transcription = await (this.client as any).audio.transcriptions.create({
+      file,
+      model: options.model || "whisper-large-v3-turbo",
+      language: options.language || "auto",
+      // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
+      response_format: (options.responseFormat as any) || "verbose_json",
+      temperature: options.temperature || 0,
+    });
+
+    return transcription as GroqTranscriptionResponse;
   }
 
   async transcribeChunk(
@@ -50,22 +71,22 @@ export class GroqClient {
       language?: string;
       prompt?: string;
       // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
-      response_format?: 'json' | 'text' | 'srt' | 'verbose_json' | 'vtt';
+      response_format?: "json" | "text" | "srt" | "verbose_json" | "vtt";
       temperature?: number;
-    } = {}
+    } = {},
   ): Promise<GroqTranscriptionResponse> {
     const file = new File([chunk.blob], `chunk_${chunk.index}.wav`, {
-      type: 'audio/wav',
+      type: "audio/wav",
     });
 
-    const transcription = await this.client.audio.transcriptions.create({
+    const transcription = await (this.client as any).audio.transcriptions.create({
       file,
-      model: 'whisper-large-v3-turbo',
-      language: options.language || 'ja',
+      model: "whisper-large-v3-turbo",
+      language: options.language || "ja",
       prompt: options.prompt,
       // biome-ignore lint/style/useNamingConvention: This is Groq API parameter name
       response_format:
-        (options.response_format as 'json' | 'text' | 'verbose_json') || 'verbose_json',
+        (options.response_format as "json" | "text" | "verbose_json") || "verbose_json",
       temperature: options.temperature || 0,
     });
 
@@ -74,7 +95,7 @@ export class GroqClient {
 
   async transcribeChunks(
     chunks: AudioChunk[],
-    options: GroqTranscriptionOptions = {}
+    options: GroqTranscriptionOptions = {},
   ): Promise<Array<GroqTranscriptionResponse & { chunkIndex: number }>> {
     const results: Array<GroqTranscriptionResponse & { chunkIndex: number }> = [];
     const errors: Array<{ chunkIndex: number; error: Error }> = [];
@@ -86,7 +107,7 @@ export class GroqClient {
         options.onProgress?.({
           chunkIndex: i,
           totalChunks: chunks.length,
-          status: 'processing',
+          status: "processing",
           progress: (i / chunks.length) * 100,
         });
 
@@ -103,7 +124,7 @@ export class GroqClient {
         options.onProgress?.({
           chunkIndex: i,
           totalChunks: chunks.length,
-          status: 'completed',
+          status: "completed",
           progress: ((i + 1) / chunks.length) * 100,
         });
 
@@ -120,7 +141,7 @@ export class GroqClient {
         options.onProgress?.({
           chunkIndex: i,
           totalChunks: chunks.length,
-          status: 'failed',
+          status: "failed",
           progress: (i / chunks.length) * 100,
           error: error instanceof Error ? error.message : String(error),
         });
@@ -130,7 +151,7 @@ export class GroqClient {
     if (errors.length > 0) {
       const errorMessage = errors
         .map((e) => `Chunk ${e.chunkIndex}: ${e.error.message}`)
-        .join('; ');
+        .join("; ");
       throw new Error(`Failed to transcribe ${errors.length} chunks: ${errorMessage}`);
     }
 
@@ -140,16 +161,16 @@ export class GroqClient {
 
 // 合并 Groq 转录结果
 export function mergeGroqTranscriptionResults(
-  results: Array<GroqTranscriptionResponse & { chunkIndex: number }>
+  results: Array<GroqTranscriptionResponse & { chunkIndex: number }>,
 ): GroqTranscriptionResponse {
   if (results.length === 0) {
-    return { text: '', segments: [] };
+    return { text: "", segments: [] };
   }
 
   const mergedText = results
     .map((result) => result.text.trim())
     .filter((text) => text.length > 0)
-    .join(' ');
+    .join(" ");
 
   const mergedSegments = results
     .flatMap((result) => result.segments || [])
@@ -162,13 +183,28 @@ export function mergeGroqTranscriptionResults(
   };
 }
 
-// 导出单例实例
-export const groqClient = new GroqClient();
+// 导出单例实例（延迟初始化）
+let groqClientInstance: GroqClient | null = null;
+
+export function getGroqClient(): GroqClient {
+  if (!groqClientInstance) {
+    groqClientInstance = new GroqClient();
+  }
+  return groqClientInstance;
+}
+
+// 为了向后兼容，导出 getter
+export const groqClient = getGroqClient();
+
+// 测试环境重置函数
+export function resetGroqClient(): void {
+  groqClientInstance = null;
+}
 
 // 导出便捷函数
 export async function transcribeWithGroq(
   chunks: AudioChunk[],
-  options: GroqTranscriptionOptions = {}
+  options: GroqTranscriptionOptions = {},
 ): Promise<{
   text: string;
   duration?: number;
@@ -196,7 +232,7 @@ export async function transcribeWithGroq(
   const mergedResult = mergeGroqTranscriptionResults(results);
 
   return {
-    text: mergedResult.text || '',
+    text: mergedResult.text || "",
     duration: mergedResult.duration,
     segments: mergedResult.segments?.map((segment) => ({
       start: segment.start,

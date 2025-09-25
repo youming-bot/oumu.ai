@@ -1,6 +1,6 @@
-import type { FileRow, Segment, TranscriptRow } from '@/types/database';
-import { DbUtils } from './db';
-import { handleSilently } from './error-handler';
+import type { FileRow, Segment, TranscriptRow } from "@/types/database";
+import { DbUtils } from "./db";
+import { handleSilently } from "./error-handler";
 
 export interface ExportData {
   version: string;
@@ -10,7 +10,7 @@ export interface ExportData {
   segments: Segment[];
 }
 
-export const VERSION = '1.0.0';
+export const VERSION = "1.0.0";
 
 export async function exportAllData(): Promise<Blob> {
   try {
@@ -42,10 +42,10 @@ export async function exportAllData(): Promise<Blob> {
     };
 
     const jsonString = JSON.stringify(exportData, null, 2);
-    return new Blob([jsonString], { type: 'application/json' });
+    return new Blob([jsonString], { type: "application/json" });
   } catch (error) {
     throw new Error(
-      `Failed to export data: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to export data: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -76,10 +76,10 @@ export async function exportFileData(fileId: number): Promise<Blob> {
     };
 
     const jsonString = JSON.stringify(exportData, null, 2);
-    return new Blob([jsonString], { type: 'application/json' });
+    return new Blob([jsonString], { type: "application/json" });
   } catch (error) {
     throw new Error(
-      `Failed to export file data: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to export file data: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -95,7 +95,7 @@ export async function importData(file: File): Promise<{
 
     // Validate export data
     if (!data.version || !data.files || !data.transcripts || !data.segments) {
-      throw new Error('Invalid export file format');
+      throw new Error("Invalid export file format");
     }
 
     let importedFiles = 0;
@@ -111,7 +111,7 @@ export async function importData(file: File): Promise<{
         importedFiles++;
       } catch (error) {
         // 单个文件导入失败不影响整体导入流程
-        handleSilently(error, 'file-import');
+        handleSilently(error, "file-import");
       }
     }
 
@@ -123,7 +123,7 @@ export async function importData(file: File): Promise<{
         importedTranscripts++;
       } catch (error) {
         // 单个转录本导入失败不影响整体导入流程
-        handleSilently(error, 'transcript-import');
+        handleSilently(error, "transcript-import");
       }
     }
 
@@ -135,7 +135,7 @@ export async function importData(file: File): Promise<{
         importedSegments++;
       } catch (error) {
         // 单个片段导入失败不影响整体导入流程
-        handleSilently(error, 'segment-import');
+        handleSilently(error, "segment-import");
       }
     }
 
@@ -146,14 +146,14 @@ export async function importData(file: File): Promise<{
     };
   } catch (error) {
     throw new Error(
-      `Failed to import data: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to import data: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
+  const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   document.body.appendChild(a);
@@ -162,9 +162,9 @@ export function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url);
 }
 
-export function generateFilename(type: 'all' | 'file', fileId?: number): string {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  if (type === 'file' && fileId) {
+export function generateFilename(type: "all" | "file", fileId?: number): string {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  if (type === "file" && fileId) {
     return `shadowing-learning-file-${fileId}-${timestamp}.json`;
   }
   return `shadowing-learning-backup-${timestamp}.json`;
@@ -172,5 +172,5 @@ export function generateFilename(type: 'all' | 'file', fileId?: number): string 
 
 export function validateImportFile(file: File): boolean {
   const maxSize = 50 * 1024 * 1024; // 50MB
-  return file.type === 'application/json' && file.size <= maxSize;
+  return file.type === "application/json" && file.size <= maxSize;
 }

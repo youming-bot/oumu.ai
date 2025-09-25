@@ -1,17 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { AudioPlayerState } from '@/components/types';
-import { URLManager } from '@/lib/url-manager';
+import { useCallback, useEffect, useState } from "react";
+import type { AudioPlayerState, FileRow } from "@/types/database";
 
 export interface UseAudioPlayerReturn {
   audioPlayerState: AudioPlayerState;
-  audioUrl?: string;
   loopStart?: number;
   loopEnd?: number;
-  setAudioFile: (file: File) => void;
+  currentFile?: FileRow | null;
+  playbackRate: number;
+  setPlaybackRate: (rate: number) => void;
+  setCurrentFile: (file: FileRow | null) => void;
   setLoopPoints: (start?: number, end?: number) => void;
   updatePlayerState: (updates: Partial<AudioPlayerState>) => void;
   handleSeek: (time: number) => void;
   clearAudio: () => void;
+  onPlay: () => void;
+  onPause: () => void;
+  onSkipBack: () => void;
+  onSkipForward: () => void;
+  onSetLoop: (start: number, end: number) => void;
+  onClearLoop: () => void;
 }
 
 /**
@@ -26,22 +33,43 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     isMuted: false,
   });
 
-  const [audioUrl, setAudioUrl] = useState<string>();
   const [loopStart, setLoopStart] = useState<number>();
   const [loopEnd, setLoopEnd] = useState<number>();
+  const [currentFile, setCurrentFile] = useState<FileRow | null>(null);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
 
-  // Clean up audio URL on component unmount or when audio changes
-  useEffect(() => {
-    return () => {
-      if (audioUrl) {
-        URLManager.revokeObjectURL(audioUrl);
-      }
-    };
-  }, [audioUrl]);
-
-  const handleSeek = useCallback((time: number) => {
-    setAudioPlayerState((prev) => ({ ...prev, currentTime: time }));
+  const sanitizeTime = useCallback((value: number): number => {
+    if (!Number.isFinite(value) || Number.isNaN(value)) {
+      return 0;
+    }
+    return Math.max(0, value);
   }, []);
+
+  const sanitizeDuration = useCallback((value: number, fallback: number): number => {
+    if (!Number.isFinite(value) || Number.isNaN(value) || value < 0) {
+      return Math.max(0, fallback);
+    }
+    return value;
+  }, []);
+
+  const handleSeek = useCallback(
+    (time: number) => {
+      setAudioPlayerState((prev) => {
+        const safeDuration =
+          Number.isFinite(prev.duration) && prev.duration > 0 ? prev.duration : undefined;
+        const safeTime = sanitizeTime(time);
+        const clampedTime =
+          safeDuration !== undefined ? Math.min(safeTime, safeDuration) : safeTime;
+
+        if (clampedTime === prev.currentTime) {
+          return prev;
+        }
+
+        return { ...prev, currentTime: clampedTime };
+      });
+    },
+    [sanitizeTime],
+  );
 
   // Handle loop playback
   useEffect(() => {
@@ -55,42 +83,44 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
     }
   }, [audioPlayerState.currentTime, audioPlayerState.isPlaying, loopStart, loopEnd, handleSeek]);
 
-  const setAudioFile = useCallback(
-    (file: File) => {
-      // Clean up previous URL
-      if (audioUrl) {
-        URLManager.revokeObjectURL(audioUrl);
-      }
-
-      const newUrl = URLManager.createObjectURL(file);
-      setAudioUrl(newUrl);
-
-      // Reset player state
-      setAudioPlayerState({
-        isPlaying: false,
-        currentTime: 0,
-        duration: 0,
-        volume: 1,
-        isMuted: false,
-      });
-    },
-    [audioUrl]
-  );
-
   const setLoopPoints = useCallback((start?: number, end?: number) => {
     setLoopStart(start);
     setLoopEnd(end);
   }, []);
 
-  const updatePlayerState = useCallback((updates: Partial<AudioPlayerState>) => {
-    setAudioPlayerState((prev) => ({ ...prev, ...updates }));
-  }, []);
+  const updatePlayerState = useCallback(
+    (updates: Partial<AudioPlayerState>) => {
+      setAudioPlayerState((prev) => {
+        const next: AudioPlayerState = { ...prev, ...updates };
+
+        const normalizedDuration =
+          updates.duration !== undefined
+            ? sanitizeDuration(updates.duration, prev.duration)
+            : prev.duration;
+
+        let normalizedTime =
+          updates.currentTime !== undefined ? sanitizeTime(updates.currentTime) : next.currentTime;
+
+        const effectiveDuration =
+          Number.isFinite(normalizedDuration) && normalizedDuration > 0
+            ? normalizedDuration
+            : undefined;
+        if (effectiveDuration !== undefined) {
+          normalizedTime = Math.min(normalizedTime, effectiveDuration);
+        }
+
+        return {
+          ...next,
+          duration: effectiveDuration ?? 0,
+          currentTime: normalizedTime,
+        };
+      });
+    },
+    [sanitizeDuration, sanitizeTime],
+  );
 
   const clearAudio = useCallback(() => {
-    if (audioUrl) {
-      URLManager.revokeObjectURL(audioUrl);
-    }
-    setAudioUrl(undefined);
+    setCurrentFile(null);
     setLoopStart(undefined);
     setLoopEnd(undefined);
     setAudioPlayerState({
@@ -100,17 +130,56 @@ export function useAudioPlayer(): UseAudioPlayerReturn {
       volume: 1,
       isMuted: false,
     });
-  }, [audioUrl]);
+  }, []);
+
+  const onPlay = useCallback(() => {
+    updatePlayerState({ isPlaying: true });
+  }, [updatePlayerState]);
+
+  const onPause = useCallback(() => {
+    updatePlayerState({ isPlaying: false });
+  }, [updatePlayerState]);
+
+  const onSkipBack = useCallback(() => {
+    handleSeek(Math.max(0, audioPlayerState.currentTime - 10));
+  }, [handleSeek, audioPlayerState.currentTime]);
+
+  const onSkipForward = useCallback(() => {
+    handleSeek(Math.min(audioPlayerState.duration, audioPlayerState.currentTime + 10));
+  }, [handleSeek, audioPlayerState.currentTime, audioPlayerState.duration]);
+
+  const onSetLoop = useCallback(
+    (start: number, end: number) => {
+      setLoopPoints(start, end);
+    },
+    [setLoopPoints],
+  );
+
+  const onClearLoop = useCallback(() => {
+    setLoopPoints(undefined, undefined);
+  }, [setLoopPoints]);
+
+  const handleSetPlaybackRate = useCallback((rate: number) => {
+    setPlaybackRate(rate);
+  }, []);
 
   return {
     audioPlayerState,
-    audioUrl,
     loopStart,
     loopEnd,
-    setAudioFile,
+    currentFile,
+    playbackRate,
+    setPlaybackRate: handleSetPlaybackRate,
+    setCurrentFile,
     setLoopPoints,
     updatePlayerState,
     handleSeek,
     clearAudio,
+    onPlay,
+    onPause,
+    onSkipBack,
+    onSkipForward,
+    onSetLoop,
+    onClearLoop,
   };
 }

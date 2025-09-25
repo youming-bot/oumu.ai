@@ -1,17 +1,17 @@
-'use client';
+"use client";
 
-import { AlertCircle, CheckCircle, Download, FileText, Upload } from 'lucide-react';
-import { useId, useState } from 'react';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { AlertCircle, CheckCircle, Download, FileText, Upload } from "lucide-react";
+import { useId, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   downloadBlob,
   exportAllData,
   generateFilename,
   importData,
   validateImportFile,
-} from '@/lib/export-service';
+} from "@/lib/export-service";
 
 interface ExportImportProps {
   onDataImported?: () => void;
@@ -35,17 +35,17 @@ export default function ExportImport({ onDataImported }: ExportImportProps) {
     setIsExporting(true);
     try {
       const blob = await exportAllData();
-      const filename = generateFilename('all');
+      const filename = generateFilename("all");
       downloadBlob(blob, filename);
 
       setImportResult({
         success: true,
-        message: 'All data exported successfully!',
+        message: "All data exported successfully!",
       });
     } catch (error) {
       setImportResult({
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to export data',
+        message: error instanceof Error ? error.message : "导出数据失败",
       });
     } finally {
       setIsExporting(false);
@@ -59,7 +59,7 @@ export default function ExportImport({ onDataImported }: ExportImportProps) {
     if (!validateImportFile(file)) {
       setImportResult({
         success: false,
-        message: 'Invalid file. Please select a JSON file under 50MB.',
+        message: "Invalid file. Please select a JSON file under 50MB.",
       });
       return;
     }
@@ -72,7 +72,7 @@ export default function ExportImport({ onDataImported }: ExportImportProps) {
 
       setImportResult({
         success: true,
-        message: 'Data imported successfully!',
+        message: "Data imported successfully!",
         details: result,
       });
 
@@ -81,12 +81,12 @@ export default function ExportImport({ onDataImported }: ExportImportProps) {
     } catch (error) {
       setImportResult({
         success: false,
-        message: error instanceof Error ? error.message : 'Failed to import data',
+        message: error instanceof Error ? error.message : "导入数据失败",
       });
     } finally {
       setIsImporting(false);
       // Clear the file input
-      event.target.value = '';
+      event.target.value = "";
     }
   };
 
@@ -97,23 +97,21 @@ export default function ExportImport({ onDataImported }: ExportImportProps) {
       <div className="space-y-4">
         {/* Export Section */}
         <div className="space-y-2">
-          <h4 className="font-medium text-sm">Export Data</h4>
+          <h4 className="font-medium text-sm">导出数据</h4>
           <p className="text-muted-foreground text-sm">
-            Download all your audio files, transcripts, and learning data as a backup.
+            下载所有您的音频文件、转录和学习数据作为备份。
           </p>
           <Button onClick={handleExportAll} disabled={isExporting} className="w-full sm:w-auto">
             <Download className="mr-2 h-4 w-4" />
-            {isExporting ? 'Exporting...' : 'Export All Data'}
+            {isExporting ? "导出中..." : "导出所有数据"}
           </Button>
         </div>
 
         <div className="border-t pt-4">
           {/* Import Section */}
           <div className="space-y-2">
-            <h4 className="font-medium text-sm">Import Data</h4>
-            <p className="text-muted-foreground text-sm">
-              Restore your data from a previous backup file.
-            </p>
+            <h4 className="font-medium text-sm">导入数据</h4>
+            <p className="text-muted-foreground text-sm">从之前的备份文件恢复您的数据。</p>
 
             <label htmlFor="import-file" className="block">
               <Button
@@ -124,7 +122,7 @@ export default function ExportImport({ onDataImported }: ExportImportProps) {
               >
                 <div>
                   <Upload className="mr-2 h-4 w-4" />
-                  {isImporting ? 'Importing...' : 'Import Data'}
+                  {isImporting ? "导入中..." : "导入数据"}
                 </div>
               </Button>
               <input
@@ -141,13 +139,13 @@ export default function ExportImport({ onDataImported }: ExportImportProps) {
 
         {/* Import Result */}
         {importResult && (
-          <Alert variant={importResult.success ? 'default' : 'destructive'}>
+          <Alert variant={importResult.success ? "default" : "destructive"}>
             {importResult.success ? (
               <CheckCircle className="h-4 w-4" />
             ) : (
               <AlertCircle className="h-4 w-4" />
             )}
-            <AlertTitle>{importResult.success ? 'Success' : 'Error'}</AlertTitle>
+            <AlertTitle>{importResult.success ? "成功" : "错误"}</AlertTitle>
             <AlertDescription>
               {importResult.message}
               {importResult.details && (

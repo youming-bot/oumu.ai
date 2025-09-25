@@ -1,406 +1,134 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import { toast } from "sonner";
-import AudioPlayer from "@/components/audio-player";
-import ExportImport from "@/components/export-import";
-import FileList from "@/components/file-list";
-import FileUpload from "@/components/file-upload";
-import Layout from "@/components/layout";
-import SubtitleDisplay from "@/components/subtitle-display";
-import TerminologyGlossary from "@/components/terminology-glossary";
-// Import custom hooks for state management
-import {
-  useAppState,
-  useAudioPlayer,
-  useFiles,
-  useTerms,
-  useTranscriptionProgress,
-  useTranscripts,
-} from "@/hooks";
-import { useMemoryCleanup } from "@/hooks/useMemoryCleanup";
-import { useTranscriptionManager } from "@/hooks/useTranscriptionManager";
-import { handleAndShowError } from "@/lib/error-handler";
-import { FileUploadUtils } from "@/lib/file-upload";
-import { TranscriptionService } from "@/lib/transcription-service";
-import type { FileRow } from "@/types/database";
+import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
+import FileList from "@/components/file-list-new";
+import FileUploadArea from "@/components/file-upload-area-new";
+import Navigation from "@/components/navigation-new";
+import SettingsPage from "@/components/settings-page";
+import StatsCards from "@/components/stats-cards";
+import { useAppState, useFiles, useTranscriptionManager, useTranscripts } from "@/hooks";
 
-export default function Home() {
-  // Use memory cleanup hook for global resource management
-  useMemoryCleanup();
+export default function HomePage() {
+  const router = useRouter();
+  const [viewState, setViewState] = useState({
+    currentView: "files" as "files" | "settings",
+  });
 
-  // Use custom hooks for state management
-  const { files, isLoading, loadFiles } = useFiles();
-  const { terms, addTerm, updateTerm, deleteTerm } = useTerms();
-  const {
-    transcripts,
-    segments,
-    loadTranscriptsByFileId,
-    loadSegmentsByTranscriptId,
-    clearSegments,
-  } = useTranscripts();
-  const {
-    audioPlayerState,
-    audioUrl,
-    loopStart,
-    loopEnd,
-    setAudioFile,
-    setLoopPoints,
-    updatePlayerState,
-    handleSeek,
-    clearAudio,
-  } = useAudioPlayer();
-  const transcriptionManager = useTranscriptionManager();
-  const { transcriptionProgress } = useTranscriptionProgress(
-    files,
-    transcripts,
+  // 使用 hooks 获取数据
+  const { fileUploadState, updateFileUploadState } = useAppState();
+  const { files, addFiles, deleteFile } = useFiles(updateFileUploadState);
+  const { transcripts } = useTranscripts();
+  const { transcriptionProgress, queueTranscription, retryTranscription } =
+    useTranscriptionManager();
+  const isPlaying = false;
+  const currentFileId = undefined;
+
+  const handleViewChange = useCallback((view: "files" | "settings") => {
+    setViewState((prev) => ({ ...prev, currentView: view }));
+  }, []);
+
+  // 转换 transcriptionProgress 的键从 number 到 string 以匹配组件期望
+  const progressMap = new Map(
+    Array.from(transcriptionProgress.entries()).map(([key, value]) => [key.toString(), value]),
   );
-  const {
-    viewState,
-    fileUploadState,
-    setViewState,
-    updateViewState,
-    updateFileUploadState,
-  } = useAppState();
 
+  // 适配文件处理函数
   const handleFilesSelected = useCallback(
     async (selectedFiles: File[]) => {
-      if (selectedFiles.length === 0) return;
-
-      updateFileUploadState({
-        selectedFiles,
-        isUploading: true,
-        uploadProgress: 0,
-      });
-
       try {
-        // Process files sequentially to avoid overwhelming the system
-        const uploadPromises = selectedFiles.map(async (file, index) => {
-          try {
-            const fileId = await FileUploadUtils.uploadFile(file);
+        const uploadedFiles = await addFiles(selectedFiles);
 
-            // Update progress
-            updateFileUploadState({
-              uploadProgress: Math.round(
-                ((index + 1) / selectedFiles.length) * 100,
-              ),
-            });
-
-            // Queue transcription
-            transcriptionManager.queueTranscription({
-              id: fileId,
-              name: file.name,
-              size: file.size,
-              type: file.type,
-              blob: new Blob([file], { type: file.type }),
-              duration: undefined,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
-
-            return { success: true, fileId };
-          } catch (error) {
-            handleAndShowError(
-              error,
-              "processFile",
-              `Failed to process ${file.name}`,
-            );
-            return { success: false, error, fileName: file.name };
+        uploadedFiles.forEach((file) => {
+          if (file.id) {
+            queueTranscription(file);
           }
         });
-
-        // Wait for all uploads to complete
-        const results = await Promise.all(uploadPromises);
-
-        // Check if any uploads failed
-        const failedUploads = results.filter((result) => !result.success);
-        if (failedUploads.length > 0) {
-          // Handle failed uploads if needed
-        }
-
-        // Reload files to show the new ones
-        await loadFiles();
-
-        updateFileUploadState({
-          isUploading: false,
-          uploadProgress: 100,
-          selectedFiles: [],
-        });
-      } catch (error) {
-        handleAndShowError(error, "fileUpload");
-        updateFileUploadState({
-          isUploading: false,
-          uploadProgress: 0,
-          selectedFiles: [],
-        });
+      } catch (_error) {
+        const { toast } = await import("sonner");
+        toast.error("文件上传失败");
       }
     },
-    [
-      updateFileUploadState,
-      loadFiles, // Queue transcription
-      transcriptionManager.queueTranscription,
-    ],
-  );
-
-  const handlePlayFile = useCallback(
-    async (file: FileRow) => {
-      // Clear previous audio
-      clearAudio();
-
-      setViewState({
-        ...viewState,
-        currentView: "player",
-        selectedFile: file,
-      });
-      updatePlayerState({ isPlaying: true });
-
-      try {
-        // Create object URL for the audio file
-        if (file.id) {
-          const blob = await FileUploadUtils.getFileBlob(file.id);
-          const audioFile = new File([blob], file.name, { type: file.type });
-          setAudioFile(audioFile);
-        }
-
-        // Load transcripts for this file
-        if (!file.id) {
-          toast.error("File ID is missing");
-          return;
-        }
-
-        // Load transcripts into state and get the data
-        await loadTranscriptsByFileId(file.id);
-
-        // Use the transcripts from state to ensure consistency
-        setTimeout(() => {
-          const completedTranscript = transcripts.find(
-            (t) => t.status === "completed",
-          );
-          if (completedTranscript) {
-            if (!completedTranscript.id) {
-              toast.error("Transcript ID is missing");
-              return;
-            }
-            loadSegmentsByTranscriptId(completedTranscript.id);
-          } else {
-            // No completed transcript, use empty segments
-            clearSegments();
-          }
-        }, 100); // Small delay to ensure state is updated
-      } catch (error) {
-        handleAndShowError(error, "loadFileData");
-        clearSegments();
-      }
-    },
-    [
-      clearAudio,
-      viewState,
-      setViewState,
-      updatePlayerState,
-      setAudioFile,
-      loadTranscriptsByFileId,
-      loadSegmentsByTranscriptId,
-      clearSegments,
-    ],
+    [addFiles, queueTranscription],
   );
 
   const handleDeleteFile = useCallback(
-    async (fileId: number) => {
-      try {
-        await FileUploadUtils.deleteFile(fileId);
-        // Reload files to reflect the deletion
-        await loadFiles();
-      } catch (error) {
-        handleAndShowError(error, "deleteFile");
-      }
+    (fileId: string) => {
+      deleteFile(fileId);
     },
-    [loadFiles],
+    [deleteFile],
   );
 
+  // 处理重试转录
   const handleRetryTranscription = useCallback(
-    async (fileId: number) => {
-      try {
-        const file = files.find((f) => f.id === fileId);
-        if (!file) return;
-
-        // Use transcription manager to retry
-        await transcriptionManager.retryTranscription(fileId);
-        toast.success(`开始重新转录: ${file.name}`);
-      } catch (error) {
-        handleAndShowError(error, "retryTranscription");
-      }
+    (fileId: string) => {
+      retryTranscription(parseInt(fileId, 10));
     },
-    [transcriptionManager, files],
+    [retryTranscription],
   );
 
-  const handlePlay = useCallback(() => {
-    updatePlayerState({ isPlaying: true });
-  }, [updatePlayerState]);
-
-  const handlePause = useCallback(() => {
-    updatePlayerState({ isPlaying: false });
-  }, [updatePlayerState]);
-
-  const handleSetLoop = useCallback(
-    (start: number, end: number) => {
-      setLoopPoints(start, end);
+  // 处理播放文件
+  const handlePlayFile = useCallback(
+    (fileId: string) => {
+      router.push(`/player/${fileId}`);
     },
-    [setLoopPoints],
+    [router],
   );
 
-  const handleClearLoop = useCallback(() => {
-    setLoopPoints(undefined, undefined);
-  }, [setLoopPoints]);
+  const isUploading = fileUploadState.isUploading;
+  const uploadProgress = fileUploadState.uploadProgress;
 
-  const handleSetAbLoop = useCallback(
-    (start: number, end: number) => {
-      setLoopPoints(start, end);
-    },
-    [setLoopPoints],
-  );
-
-  const handleClearAbLoop = useCallback(() => {
-    setLoopPoints(undefined, undefined);
-  }, [setLoopPoints]);
-
-  const renderCurrentView = useMemo(() => {
+  const renderCurrentView = () => {
     switch (viewState.currentView) {
-      case "upload":
-        return (
-          <div className="space-y-6">
-            <FileUpload
-              onFilesSelected={handleFilesSelected}
-              isUploading={fileUploadState.isUploading}
-              uploadProgress={fileUploadState.uploadProgress}
-            />
-          </div>
-        );
-
       case "files":
         return (
-          <div className="space-y-6">
-            <h2 className="mb-6 font-semibold text-2xl">Your Files</h2>
-            <FileList
-              files={files}
-              transcripts={transcripts}
-              transcriptionProgress={transcriptionProgress}
-              onPlayFile={handlePlayFile}
-              onDeleteFile={handleDeleteFile}
-              onRetryTranscription={handleRetryTranscription}
-              isLoading={isLoading}
-            />
-          </div>
-        );
+          <div className="flex-1 px-4 py-8 sm:px-6 lg:px-8 mt-24">
+            <div className="mx-auto max-w-5xl">
+              <div className="space-y-8">
+                <StatsCards />
 
-      case "player":
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="mb-6 font-semibold text-2xl">
-                {viewState.selectedFile?.name || "Audio Player"}
-              </h2>
-              <AudioPlayer
-                audioUrl={audioUrl}
-                currentTime={audioPlayerState.currentTime}
-                duration={viewState.selectedFile?.duration || 0}
-                isPlaying={audioPlayerState.isPlaying}
-                onPlay={handlePlay}
-                onPause={handlePause}
-                onSeek={handleSeek}
-                onSetLoop={handleSetLoop}
-                onClearLoop={handleClearLoop}
-                onSetAbLoop={handleSetAbLoop}
-                onClearAbLoop={handleClearAbLoop}
-                loopStart={loopStart}
-                loopEnd={loopEnd}
-                abLoopStart={loopStart}
-                abLoopEnd={loopEnd}
-                title={viewState.selectedFile?.name}
-              />
-            </div>
+                <div className="mb-8">
+                  <FileUploadArea
+                    onFilesSelected={handleFilesSelected}
+                    isUploading={isUploading}
+                    uploadProgress={uploadProgress}
+                  />
+                </div>
 
-            {/* Subtitle Display */}
-            <div>
-              <h3 className="mb-4 font-medium text-xl">Subtitles</h3>
-              <SubtitleDisplay
-                segments={segments}
-                currentTime={audioPlayerState.currentTime}
-                isPlaying={audioPlayerState.isPlaying}
-                onSeek={handleSeek}
-                showTranslation={true}
-              />
+                <div>
+                  <FileList
+                    files={files || []}
+                    transcripts={transcripts || []}
+                    transcriptionProgress={progressMap}
+                    onPlayFile={handlePlayFile}
+                    onDeleteFile={handleDeleteFile}
+                    onRetryTranscription={handleRetryTranscription}
+                    isPlaying={isPlaying}
+                    currentFileId={currentFileId}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         );
-
-      case "terminology":
-        return (
-          <div className="space-y-6">
-            <h2 className="mb-6 font-semibold text-2xl">
-              Terminology Glossary
-            </h2>
-            <TerminologyGlossary
-              terms={terms}
-              onAddTerm={addTerm}
-              onUpdateTerm={updateTerm}
-              onDeleteTerm={deleteTerm}
-            />
-          </div>
-        );
-
       case "settings":
         return (
-          <div className="space-y-6">
-            <h2 className="mb-6 font-semibold text-2xl">Data Management</h2>
-            <ExportImport />
+          <div className="flex-1 px-4 py-8 sm:px-6 lg:px-8 mt-24">
+            <div className="mx-auto max-w-5xl">
+              <SettingsPage />
+            </div>
           </div>
         );
-
       default:
-        return <div>Unknown view</div>;
+        return null;
     }
-  }, [
-    viewState.currentView,
-    viewState.selectedFile,
-    handleFilesSelected,
-    fileUploadState.isUploading,
-    fileUploadState.uploadProgress,
-    files,
-    transcripts,
-    transcriptionProgress,
-    handlePlayFile,
-    handleDeleteFile,
-    isLoading,
-    audioUrl,
-    audioPlayerState.currentTime,
-    audioPlayerState.isPlaying,
-    handlePlay,
-    handlePause,
-    handleSeek,
-    handleSetLoop,
-    handleClearLoop,
-    loopStart,
-    loopEnd,
-    segments,
-    terms,
-    addTerm,
-    updateTerm,
-    deleteTerm,
-    handleSetAbLoop,
-    handleClearAbLoop,
-    handleRetryTranscription,
-  ]);
-
-  const handleViewChange = useCallback(
-    (view: "files" | "terminology" | "upload" | "player" | "settings") => {
-      updateViewState({ currentView: view });
-    },
-    [updateViewState],
-  );
+  };
 
   return (
-    <Layout currentView={viewState.currentView} onViewChange={handleViewChange}>
-      <div className="min-h-screen">{renderCurrentView}</div>
-    </Layout>
+    <div className="relative flex min-h-screen w-full flex-col">
+      <Navigation currentView={viewState.currentView} onViewChange={handleViewChange} />
+
+      <main className="flex-1">{renderCurrentView()}</main>
+    </div>
   );
 }

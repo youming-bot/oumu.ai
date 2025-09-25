@@ -1,7 +1,7 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen } from "@testing-library/react";
 
 // Mock all dependencies BEFORE importing the component
-jest.mock('@/components/ui/table', () => {
+jest.mock("@/components/ui/table", () => {
   const Table = ({ children, className }) => (
     <table className={className} data-testid="table">
       {children}
@@ -39,7 +39,7 @@ jest.mock('@/components/ui/table', () => {
   };
 });
 
-jest.mock('@/components/ui/button', () => {
+jest.mock("@/components/ui/button", () => {
   const MockButton = function MockButton({
     children,
     onClick,
@@ -65,7 +65,7 @@ jest.mock('@/components/ui/button', () => {
   return MockButton;
 });
 
-jest.mock('@/components/ui/badge', () => {
+jest.mock("@/components/ui/badge", () => {
   const MockBadge = function MockBadge({ children, variant, className }) {
     return (
       <span className={className} data-variant={variant} data-testid="mock-badge">
@@ -76,7 +76,7 @@ jest.mock('@/components/ui/badge', () => {
   return MockBadge;
 });
 
-jest.mock('@/components/ui/tooltip', () => {
+jest.mock("@/components/ui/tooltip", () => {
   const TooltipProvider = ({ children }) => <div data-testid="tooltip-provider">{children}</div>;
   const Tooltip = ({ children }) => <div data-testid="tooltip">{children}</div>;
   const TooltipTrigger = ({ children, asChild }) =>
@@ -91,11 +91,11 @@ jest.mock('@/components/ui/tooltip', () => {
   };
 });
 
-jest.mock('@/components/ui/skeleton', () => {
+jest.mock("@/components/ui/skeleton", () => {
   const MockSkeleton = function MockSkeleton({ className, ...props }) {
     return (
       <div
-        className={className || 'animate-pulse rounded bg-gray-200'}
+        className={className || "animate-pulse rounded bg-gray-200"}
         data-testid="skeleton"
         {...props}
       >
@@ -106,7 +106,7 @@ jest.mock('@/components/ui/skeleton', () => {
   return { Skeleton: MockSkeleton };
 });
 
-jest.mock('@/components/ui/card', () => {
+jest.mock("@/components/ui/card", () => {
   const MockCard = function MockCard({ children, className, ...props }) {
     return (
       <div className={className} data-testid="card" {...props}>
@@ -117,7 +117,7 @@ jest.mock('@/components/ui/card', () => {
   return { Card: MockCard };
 });
 
-jest.mock('@/components/ui/input', () => {
+jest.mock("@/components/ui/input", () => {
   const MockInput = function MockInput({ className, placeholder, onChange, ...props }) {
     return (
       <input
@@ -132,7 +132,7 @@ jest.mock('@/components/ui/input', () => {
   return { Input: MockInput };
 });
 
-jest.mock('lucide-react', () => ({
+jest.mock("lucide-react", () => ({
   File: () => <div data-testid="file-icon">File</div>,
   Play: () => <div data-testid="play-icon">Play</div>,
   Trash2: () => <div data-testid="trash-icon">Trash2</div>,
@@ -146,28 +146,28 @@ jest.mock('lucide-react', () => ({
   SortAsc: () => <div data-testid="sort-asc-icon">SortAsc</div>,
 }));
 
-jest.mock('@/lib/utils', () => ({
-  cn: jest.fn((...inputs) => inputs.filter(Boolean).join(' ')),
+jest.mock("@/lib/utils", () => ({
+  cn: jest.fn((...inputs) => inputs.filter(Boolean).join(" ")),
   formatFileSize: jest.fn((bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
   }),
   formatDuration: jest.fn((seconds) => {
-    if (!seconds) return '--:--';
+    if (!seconds) return "--:--";
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   }),
 }));
 
 // Import the actual component for testing AFTER all mocks are set up
-import FileList from '../../../src/components/file-list';
-import type { FileRow } from '../../../src/types/database';
+import FileList from "../../../src/components/file-list";
+import type { FileRow } from "../../../src/types/database";
 
-describe('FileList Specific Issue Debug', () => {
+describe("FileList Specific Issue Debug", () => {
   const mockOnPlayFile = jest.fn();
   const mockOnDeleteFile = jest.fn();
 
@@ -177,42 +177,33 @@ describe('FileList Specific Issue Debug', () => {
 
   const createMockFile = (overrides: any = {}): FileRow => ({
     id: 1,
-    name: 'test-audio.mp3',
+    name: "test-audio.mp3",
     size: 1024 * 1024 * 5, // 5MB
-    type: 'audio/mp3',
-    blob: new Blob(['audio data']),
+    type: "audio/mp3",
+    blob: new Blob(["audio data"]),
     duration: 180, // 3 minutes
-    createdAt: new Date('2024-01-01'),
-    updatedAt: new Date('2024-01-01'),
+    createdAt: new Date("2024-01-01"),
+    updatedAt: new Date("2024-01-01"),
     ...overrides,
   });
 
-  it('should render with files step by step', () => {
-    console.log('=== Step by step rendering test ===');
-
-    // Step 1: 先测试空的情况
-    console.log('Step 1: 渲染空文件列表');
+  it("should render with files step by step", () => {
     const { unmount } = render(
       <FileList
         files={[]}
         transcripts={[]}
         onPlayFile={mockOnPlayFile}
         onDeleteFile={mockOnDeleteFile}
-      />
+      />,
     );
 
-    expect(screen.getByText(/No files uploaded/)).toBeInTheDocument();
-    console.log('Step 1: 空列表渲染成功');
+    expect(screen.getByText(/尚未上传文件/)).toBeInTheDocument();
 
     unmount();
-    console.log('Step 1: 卸载完成');
-
-    // Step 2: 测试单个文件
-    console.log('Step 2: 渲染单个文件');
     const file = createMockFile({
-      name: 'japanese-lesson.mp3',
+      name: "japanese-lesson.mp3",
       size: 2 * 1024 * 1024, // 2MB
-      type: 'audio/mp3',
+      type: "audio/mp3",
       duration: 240, // 4 minutes
     });
 
@@ -223,73 +214,45 @@ describe('FileList Specific Issue Debug', () => {
           transcripts={[]}
           onPlayFile={mockOnPlayFile}
           onDeleteFile={mockOnDeleteFile}
-        />
+        />,
       );
-
-      console.log('Step 2: 单文件渲染成功');
-      console.log('当前页面内容:', screen.getByRole('document').textContent.substring(0, 200));
 
       // 检查是否有错误
       const errorText = screen.queryByText(/Error/);
       if (errorText) {
-        console.log('发现错误文本:', errorText.textContent);
       }
     } catch (error) {
-      console.log('Step 2: 单文件渲染失败:', error.message);
-      console.log('Stack:', error.stack);
-
       // 详细分析错误
-      if (error.message.includes('Element type is invalid')) {
-        console.log('=== 问题分析 ===');
-        console.log('这个问题通常是因为：');
-        console.log('1. 某个组件没有被正确导入');
-        console.log('2. 某个组件的导出有问题');
-        console.log('3. 条件渲染导致某个组件为 undefined');
-
-        // 检查 FileRowComponent 是否有问题
-        console.log('检查 FileRowComponent...');
-        const fileListSource = require('../../../src/components/file-list.tsx');
-        console.log('FileList 组件结构:', Object.keys(fileListSource));
+      if (error.message.includes("Element type is invalid")) {
+        const fileListSource = require("../../../src/components/file-list.tsx");
 
         if (fileListSource.FileRowComponent) {
-          console.log('FileRowComponent 存在:', typeof fileListSource.FileRowComponent);
         } else {
-          console.log('FileRowComponent 不存在或未导出');
         }
       }
     }
   });
 
-  it('should check component internals', () => {
-    console.log('=== 检查组件内部结构 ===');
-
+  it("should check component internals", () => {
     // 检查组件源码
-    const fs = require('node:fs');
-    const path = require('node:path');
-    const componentPath = path.join(__dirname, '../../../src/components/file-list.tsx');
+    const fs = require("node:fs");
+    const path = require("node:path");
+    const componentPath = path.join(__dirname, "../../../src/components/file-list.tsx");
 
     try {
-      const content = fs.readFileSync(componentPath, 'utf8');
+      const content = fs.readFileSync(componentPath, "utf8");
 
       // 检查关键组件定义
-      const hasFileRowComponent = content.includes('const FileRowComponent = React.memo');
-      const hasFileRowExport = content.includes('FileRowComponent.displayName');
-      const hasFileListDefinition = content.includes('const FileList = React.memo');
-
-      console.log('包含 FileRowComponent 定义:', hasFileRowComponent);
-      console.log('包含 FileRowComponent 导出:', hasFileRowExport);
-      console.log('包含 FileList 定义:', hasFileListDefinition);
+      const _hasFileRowComponent = content.includes("const FileRowComponent = React.memo");
+      const _hasFileRowExport = content.includes("FileRowComponent.displayName");
+      const _hasFileListDefinition = content.includes("const FileList = React.memo");
 
       // 检查是否有语法问题
       const fileRowComponentMatches = content.match(
-        /const FileRowComponent = React\.memo.*?\n\}\);/gs
+        /const FileRowComponent = React\.memo.*?\n\}\);/gs,
       );
       if (fileRowComponentMatches) {
-        console.log('FileRowComponent 定义长度:', fileRowComponentMatches[0].length);
-        console.log('FileRowComponent 定义预览:', fileRowComponentMatches[0].substring(0, 100));
       }
-    } catch (error) {
-      console.log('读取组件文件失败:', error.message);
-    }
+    } catch (_error) {}
   });
 });

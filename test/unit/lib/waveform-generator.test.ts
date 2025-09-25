@@ -1,4 +1,4 @@
-import { generateWaveform } from '@/lib/waveform-generator';
+import { generateWaveform } from "@/lib/waveform-generator";
 
 // Mock AudioContext
 global.AudioContext = jest.fn().mockImplementation(() => ({
@@ -6,7 +6,7 @@ global.AudioContext = jest.fn().mockImplementation(() => ({
   close: jest.fn().mockResolvedValue(undefined),
 }));
 
-describe('WaveformGenerator', () => {
+describe("WaveformGenerator", () => {
   let mockAudioContext: any;
   let mockAudioBuffer: any;
 
@@ -32,9 +32,9 @@ describe('WaveformGenerator', () => {
     jest.clearAllMocks();
   });
 
-  describe('generateWaveform', () => {
-    it('should generate waveform data with default config', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
+  describe("generateWaveform", () => {
+    it("should generate waveform data with default config", async () => {
+      const mockBlob = new Blob(["audio data"], { type: "audio/wav" });
 
       const result = await generateWaveform(mockBlob);
 
@@ -50,8 +50,8 @@ describe('WaveformGenerator', () => {
       expect(mockAudioContext.close).toHaveBeenCalled();
     });
 
-    it('should generate waveform with custom resolution', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
+    it("should generate waveform with custom resolution", async () => {
+      const mockBlob = new Blob(["audio data"], { type: "audio/wav" });
       const config = { resolution: 50 };
 
       const result = await generateWaveform(mockBlob, config);
@@ -60,16 +60,16 @@ describe('WaveformGenerator', () => {
       expect(result.peaks).toHaveLength(500); // 10 seconds * 50 points/second
     });
 
-    it('should handle audio decoding errors', async () => {
-      const mockBlob = new Blob(['invalid audio'], { type: 'audio/wav' });
-      mockAudioContext.decodeAudioData.mockRejectedValue(new Error('Invalid audio format'));
+    it("should handle audio decoding errors", async () => {
+      const mockBlob = new Blob(["invalid audio"], { type: "audio/wav" });
+      mockAudioContext.decodeAudioData.mockRejectedValue(new Error("Invalid audio format"));
 
-      await expect(generateWaveform(mockBlob)).rejects.toThrow('Invalid audio format');
+      await expect(generateWaveform(mockBlob)).rejects.toThrow("Invalid audio format");
 
       expect(mockAudioContext.close).toHaveBeenCalled();
     });
 
-    it('should generate peaks correctly from audio samples', async () => {
+    it("should generate peaks correctly from audio samples", async () => {
       // Create mock channel data with varying amplitudes
       const channelData = new Float32Array(441000);
       for (let i = 0; i < channelData.length; i++) {
@@ -78,15 +78,15 @@ describe('WaveformGenerator', () => {
 
       mockAudioBuffer.getChannelData.mockReturnValue(channelData);
 
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
+      const mockBlob = new Blob(["audio data"], { type: "audio/wav" });
       const result = await generateWaveform(mockBlob);
 
       expect(result.peaks.every((peak) => peak >= 0 && peak <= 1)).toBe(true);
       expect(result.peaks.some((peak) => peak > 0)).toBe(true);
     });
 
-    it('should apply smoothing when enabled', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
+    it("should apply smoothing when enabled", async () => {
+      const mockBlob = new Blob(["audio data"], { type: "audio/wav" });
       const config = { smoothing: true, smoothingWindow: 3 };
 
       const result = await generateWaveform(mockBlob, config);
@@ -96,8 +96,8 @@ describe('WaveformGenerator', () => {
       expect(result.peaks.every((peak) => peak >= 0 && peak <= 1)).toBe(true);
     });
 
-    it('should disable smoothing when requested', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
+    it("should disable smoothing when requested", async () => {
+      const mockBlob = new Blob(["audio data"], { type: "audio/wav" });
       const config = { smoothing: false };
 
       const result = await generateWaveform(mockBlob, config);
@@ -105,20 +105,20 @@ describe('WaveformGenerator', () => {
       expect(result.peaks).toHaveLength(1000);
     });
 
-    it('should handle very short audio files', async () => {
+    it("should handle very short audio files", async () => {
       mockAudioBuffer.duration = 0.1; // 100ms
       mockAudioBuffer.length = 4410; // 0.1 seconds * 44100 samples/sec
       mockAudioBuffer.getChannelData.mockReturnValue(new Float32Array(4410).fill(0.3));
 
-      const mockBlob = new Blob(['short audio'], { type: 'audio/wav' });
+      const mockBlob = new Blob(["short audio"], { type: "audio/wav" });
       const result = await generateWaveform(mockBlob);
 
       expect(result.duration).toBe(0.1);
       expect(result.peaks).toHaveLength(10); // 0.1 seconds * 100 points/second
     });
 
-    it('should handle mono audio (single channel)', async () => {
-      const mockBlob = new Blob(['mono audio'], { type: 'audio/wav' });
+    it("should handle mono audio (single channel)", async () => {
+      const mockBlob = new Blob(["mono audio"], { type: "audio/wav" });
 
       const result = await generateWaveform(mockBlob);
 
@@ -126,34 +126,34 @@ describe('WaveformGenerator', () => {
       expect(result.peaks).toHaveLength(1000);
     });
 
-    it('should handle empty audio data', async () => {
+    it("should handle empty audio data", async () => {
       mockAudioBuffer.duration = 0;
       mockAudioBuffer.length = 0;
       mockAudioBuffer.getChannelData.mockReturnValue(new Float32Array(0));
 
-      const mockBlob = new Blob([''], { type: 'audio/wav' });
+      const mockBlob = new Blob([""], { type: "audio/wav" });
       const result = await generateWaveform(mockBlob);
 
       expect(result.duration).toBe(0);
       expect(result.peaks).toHaveLength(0);
     });
 
-    it('should close audio context even when error occurs', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
-      const error = new Error('Processing error');
+    it("should close audio context even when error occurs", async () => {
+      const mockBlob = new Blob(["audio data"], { type: "audio/wav" });
+      const error = new Error("Processing error");
 
       // Make getChannelData throw an error
       mockAudioBuffer.getChannelData.mockImplementation(() => {
         throw error;
       });
 
-      await expect(generateWaveform(mockBlob)).rejects.toThrow('Processing error');
+      await expect(generateWaveform(mockBlob)).rejects.toThrow("Processing error");
 
       expect(mockAudioContext.close).toHaveBeenCalled();
     });
 
-    it('should handle custom smoothing window size', async () => {
-      const mockBlob = new Blob(['audio data'], { type: 'audio/wav' });
+    it("should handle custom smoothing window size", async () => {
+      const mockBlob = new Blob(["audio data"], { type: "audio/wav" });
       const config = {
         smoothing: true,
         smoothingWindow: 5,

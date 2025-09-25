@@ -1,13 +1,13 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   generateWaveform,
   generateWaveformForFile,
   type WaveformData,
-} from '@/lib/waveform-generator';
+} from "@/lib/waveform-generator";
 
 interface WaveformDisplayProps {
   audioBlob?: Blob;
@@ -32,11 +32,11 @@ export default function WaveformDisplay({
   duration = 0,
   onSeek,
   height = 80,
-  width = '100%',
-  color = '#3b82f6',
-  progressColor = '#10b981',
+  width = "100%",
+  color = "#3b82f6",
+  progressColor = "#10b981",
   showProgress = true,
-  className = '',
+  className = "",
 }: WaveformDisplayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [waveformData, setWaveformData] = useState<WaveformData | null>(null);
@@ -74,12 +74,12 @@ export default function WaveformDisplay({
           smoothingWindow: 3,
         });
       } else {
-        throw new Error('No audio source provided');
+        throw new Error("No audio source provided");
       }
 
       setWaveformData(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate waveform');
+      setError(err instanceof Error ? err.message : "Failed to generate waveform");
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +93,7 @@ export default function WaveformDisplay({
     const canvas = canvasRef.current;
     if (!canvas || !waveformData) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     const { peaks, duration: waveformDuration } = waveformData;
@@ -105,7 +105,7 @@ export default function WaveformDisplay({
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw background
-    ctx.fillStyle = '#f8fafc';
+    ctx.fillStyle = "#f8fafc";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const centerY = canvas.height / 2;
@@ -127,7 +127,7 @@ export default function WaveformDisplay({
     if (showProgress && effectiveDuration > 0) {
       const progressX = progressRatio * canvas.width;
 
-      ctx.strokeStyle = '#ef4444';
+      ctx.strokeStyle = "#ef4444";
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(progressX, 0);
@@ -170,10 +170,10 @@ export default function WaveformDisplay({
 
   useEffect(() => {
     handleCanvasResize();
-    window.addEventListener('resize', handleCanvasResize);
+    window.addEventListener("resize", handleCanvasResize);
 
     return () => {
-      window.removeEventListener('resize', handleCanvasResize);
+      window.removeEventListener("resize", handleCanvasResize);
     };
   }, [handleCanvasResize]);
 

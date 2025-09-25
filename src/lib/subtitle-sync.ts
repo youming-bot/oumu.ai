@@ -1,4 +1,4 @@
-import type { Segment } from '@/types/database';
+import type { Segment } from "@/types/database";
 
 export interface Subtitle {
   id: number;
@@ -9,7 +9,7 @@ export interface Subtitle {
   translation?: string;
   annotations?: string[];
   furigana?: string;
-  wordTimestamps?: import('@/types/database').WordTimestamp[];
+  wordTimestamps?: import("@/types/database").WordTimestamp[];
   isActive: boolean;
 }
 
@@ -53,7 +53,7 @@ export interface AbLoopManagerInstance {
 // 函数式实现
 function createSubtitleSynchronizer(
   segments: Segment[],
-  options: SubtitleSyncOptions = {}
+  options: SubtitleSyncOptions = {},
 ): SubtitleSynchronizerInstance {
   let subtitles: Subtitle[] = [];
   let currentTime: number = 0;
@@ -168,7 +168,7 @@ function createSubtitleSynchronizer(
 
   function getSubtitleTextAtTime(time: number): string {
     const subtitle = findSubtitleAtTime(time);
-    return subtitle?.text || '';
+    return subtitle?.text || "";
   }
 
   function getSubtitlesInRange(startTime: number, endTime: number): Subtitle[] {
@@ -215,7 +215,7 @@ function createSubtitleSynchronizer(
 
 // SubtitleRenderer 函数
 export function renderSubtitle(subtitle: Subtitle, showTranslation: boolean = false): string {
-  if (!subtitle) return '';
+  if (!subtitle) return "";
 
   let renderedText = subtitle.normalizedText || subtitle.text;
 
@@ -236,14 +236,14 @@ function addFurigana(text: string, _furigana: string): string {
 }
 
 export function createSubtitleElement(subtitle: Subtitle, isActive: boolean = false): HTMLElement {
-  const div = document.createElement('div');
-  div.className = `subtitle ${isActive ? 'subtitle-active' : 'subtitle-inactive'}`;
+  const div = document.createElement("div");
+  div.className = `subtitle ${isActive ? "subtitle-active" : "subtitle-inactive"}`;
 
   div.innerHTML = renderSubtitle(subtitle, true);
 
-  div.setAttribute('data-start', subtitle.start.toString());
-  div.setAttribute('data-end', subtitle.end.toString());
-  div.setAttribute('data-id', subtitle.id.toString());
+  div.setAttribute("data-start", subtitle.start.toString());
+  div.setAttribute("data-end", subtitle.end.toString());
+  div.setAttribute("data-id", subtitle.id.toString());
 
   return div;
 }
@@ -310,11 +310,11 @@ export function formatTime(seconds: number): string {
   const secs = Math.floor(seconds % 60);
   const ms = Math.floor((seconds % 1) * 100);
 
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+  return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${ms.toString().padStart(2, "0")}`;
 }
 
 export function parseTime(timeString: string): number {
-  const parts = timeString.split(':');
+  const parts = timeString.split(":");
 
   if (parts.length === 2) {
     const minutes = parseInt(parts[0], 10);

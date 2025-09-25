@@ -1,4 +1,4 @@
-import type { Segment, WordTimestamp } from '@/types/database';
+import type { Segment, WordTimestamp } from "@/types/database";
 
 /**
  * Generate approximate word timestamps based on segment timing and text
@@ -7,7 +7,7 @@ import type { Segment, WordTimestamp } from '@/types/database';
 export function generateWordTimestamps(
   segmentText: string,
   segmentStart: number,
-  segmentEnd: number
+  segmentEnd: number,
 ): WordTimestamp[] {
   const words = segmentText.split(/\s+/).filter((word) => word.length > 0);
   if (words.length === 0) return [];
@@ -41,7 +41,7 @@ export function generateWordTimestamps(
  */
 export function getCurrentWord(
   currentTime: number,
-  wordTimestamps: WordTimestamp[]
+  wordTimestamps: WordTimestamp[],
 ): { word: string; index: number } | null {
   for (let i = 0; i < wordTimestamps.length; i++) {
     const timestamp = wordTimestamps[i];
@@ -61,14 +61,14 @@ export function getCurrentWord(
 export function getWordContext(
   currentTime: number,
   wordTimestamps: WordTimestamp[],
-  contextWords: number = 2
+  contextWords: number = 2,
 ): {
   previous: WordTimestamp[];
   current: WordTimestamp | null;
   next: WordTimestamp[];
 } {
   const currentIndex = wordTimestamps.findIndex(
-    (ts) => currentTime >= ts.start && currentTime <= ts.end
+    (ts) => currentTime >= ts.start && currentTime <= ts.end,
   );
 
   if (currentIndex === -1) {
@@ -83,7 +83,7 @@ export function getWordContext(
 
   const next = wordTimestamps.slice(
     currentIndex + 1,
-    Math.min(wordTimestamps.length, currentIndex + contextWords + 1)
+    Math.min(wordTimestamps.length, currentIndex + contextWords + 1),
   );
 
   return {
@@ -111,7 +111,7 @@ export function calculateSpeakingRate(wordTimestamps: WordTimestamp[]): number {
  */
 export function findPauses(
   wordTimestamps: WordTimestamp[],
-  pauseThreshold: number = 0.3
+  pauseThreshold: number = 0.3,
 ): Array<{
   start: number;
   end: number;
@@ -173,12 +173,12 @@ export function convertWordTimestampsToSrtFormat(wordTimestamps: WordTimestamp[]
         const secs = seconds % 60;
         const millis = Math.floor((seconds % 1) * 1000);
 
-        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')},${millis.toString().padStart(3, '0')}`;
+        return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")},${millis.toString().padStart(3, "0")}`;
       };
 
       return `${index + 1}\n${formatTime(ts.start)} --> ${formatTime(ts.end)}\n${ts.word}\n`;
     })
-    .join('\n');
+    .join("\n");
 }
 
 /**
@@ -197,13 +197,13 @@ export function mergeWordTimestamps(segments: Segment[]): WordTimestamp[] {
 export function exportWordTimestampsToJson(wordTimestamps: WordTimestamp[]): string {
   return JSON.stringify(
     {
-      version: '1.0.0',
+      version: "1.0.0",
       generatedAt: new Date().toISOString(),
       wordCount: wordTimestamps.length,
       timestamps: wordTimestamps,
     },
     null,
-    2
+    2,
   );
 }
 
@@ -213,14 +213,14 @@ export class WordTimestampService {
   static generateWordTimestamps(
     segmentText: string,
     segmentStart: number,
-    segmentEnd: number
+    segmentEnd: number,
   ): WordTimestamp[] {
     return generateWordTimestamps(segmentText, segmentStart, segmentEnd);
   }
 
   static getCurrentWord(
     currentTime: number,
-    wordTimestamps: WordTimestamp[]
+    wordTimestamps: WordTimestamp[],
   ): { word: string; index: number } | null {
     return getCurrentWord(currentTime, wordTimestamps);
   }
@@ -228,7 +228,7 @@ export class WordTimestampService {
   static getWordContext(
     currentTime: number,
     wordTimestamps: WordTimestamp[],
-    contextWords: number = 2
+    contextWords: number = 2,
   ) {
     return getWordContext(currentTime, wordTimestamps, contextWords);
   }

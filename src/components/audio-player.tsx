@@ -1,19 +1,13 @@
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useRef } from 'react';
-import AbLoopInput from '@/components/ab-loop-input';
-import AudioControls from '@/components/audio-controls';
-import KeyboardShortcutsHelp from '@/components/keyboard-shortcuts-help';
-import LoopControls from '@/components/loop-controls';
-import PlaybackSpeedControl from '@/components/playback-speed-control';
-import { Card } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
-import VolumeControl from '@/components/volume-control';
-import WaveformDisplay from '@/components/waveform-display';
-import { useAbLoop } from '@/hooks/useAbLoop';
-import { useAudioPlayerState } from '@/hooks/useAudioPlayerState';
-import { useAudioPlayerTime } from '@/hooks/useAudioPlayerTime';
-import { useKeyboardControls } from '@/hooks/useKeyboardControls';
+import React, { useEffect, useRef } from "react";
+import AudioControls from "@/components/audio-controls";
+import PlaybackSpeedControl from "@/components/playback-speed-control";
+import { Card } from "@/components/ui/card";
+import VolumeControl from "@/components/volume-control";
+import { useAudioPlayerState } from "@/hooks/useAudioPlayerState";
+import { useAudioPlayerTime } from "@/hooks/useAudioPlayerTime";
+import { useKeyboardControls } from "@/hooks/useKeyboardControls";
 
 interface AudioPlayerProps {
   audioUrl?: string;
@@ -25,15 +19,8 @@ interface AudioPlayerProps {
   onSeek?: (time: number) => void;
   onSkipBack?: () => void;
   onSkipForward?: () => void;
-  onSetLoop?: (start: number, end: number) => void;
-  onClearLoop?: () => void;
-  loopStart?: number;
-  loopEnd?: number;
   title?: string;
-  onSetAbLoop?: (start: number, end: number) => void;
-  onClearAbLoop?: () => void;
-  abLoopStart?: number;
-  abLoopEnd?: number;
+  className?: string;
 }
 
 const AudioPlayer = React.memo<AudioPlayerProps>(
@@ -47,47 +34,13 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
     onSeek,
     onSkipBack,
     onSkipForward,
-    onSetLoop,
-    onClearLoop,
-    loopStart,
-    loopEnd,
-    title = 'Audio Player',
-    onSetAbLoop,
-    onClearAbLoop,
-    abLoopStart,
-    abLoopEnd,
+    title = "Audio Player",
+    className = "",
   }) => {
     const audioRef = useRef<HTMLAudioElement>(null);
-    const { formatTime, parseTimeInput } = useAudioPlayerTime();
-    const {
-      isMuted,
-      volume,
-      playbackRate,
-      showAdvancedControls,
-      setVolume,
-      setPlaybackRate,
-      toggleMute,
-      setShowAdvancedControls,
-    } = useAudioPlayerState();
-
-    const {
-      abLoopMode,
-      customLoopStart,
-      customLoopEnd,
-      handleAbLoopSet,
-      handleAbLoopClear,
-      handleCustomLoopApply,
-      setCustomLoopStart,
-      setCustomLoopEnd,
-      getAbLoopStatus,
-    } = useAbLoop({
-      currentTime,
-      duration,
-      formatTime,
-      parseTimeInput,
-      onSetAbLoop,
-      onClearAbLoop,
-    });
+    const { formatTime } = useAudioPlayerTime();
+    const { isMuted, volume, playbackRate, setVolume, setPlaybackRate, toggleMute } =
+      useAudioPlayerState();
 
     const handlePlayPause = () => {
       if (isPlaying) {
@@ -95,12 +48,6 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
       } else {
         onPlay?.();
       }
-    };
-
-    const handleProgressChange = (value: number[]) => {
-      if (!duration) return;
-      const seekTime = (value[0] / 100) * duration;
-      onSeek?.(seekTime);
     };
 
     const handleVolumeChange = (value: number[]) => {
@@ -113,44 +60,15 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
       setPlaybackRate([newRate]);
     };
 
-    const handleLoopToggle = () => {
-      if (loopStart === undefined) {
-        onSetLoop?.(currentTime, currentTime + 10);
-      } else {
-        onClearLoop?.();
-      }
-    };
-
     // Keyboard controls
     useKeyboardControls({
       audioUrl,
       onPlayPause: handlePlayPause,
       onSkipBack,
       onSkipForward,
-      onSetAbLoop: handleAbLoopSet,
       onToggleMute: toggleMute,
       onSetPlaybackRate: (rate) => setPlaybackRate([rate]),
     });
-
-    // Memoized values
-    const progressValue = useMemo(
-      () => (duration ? [(currentTime / duration) * 100] : [0]),
-      [currentTime, duration]
-    );
-
-    const formattedCurrentTime = useMemo(() => formatTime(currentTime), [currentTime, formatTime]);
-
-    const formattedDuration = useMemo(() => formatTime(duration), [duration, formatTime]);
-
-    const formattedLoopTime = useMemo(() => {
-      if (loopStart === undefined) return null;
-      return `${formatTime(loopStart)}-${formatTime(loopEnd || loopStart + 10)}`;
-    }, [loopStart, loopEnd, formatTime]);
-
-    const formattedAbLoopTime = useMemo(() => {
-      if (abLoopStart === undefined || abLoopEnd === undefined) return null;
-      return `${formatTime(abLoopStart)}-${formatTime(abLoopEnd)}`;
-    }, [abLoopStart, abLoopEnd, formatTime]);
 
     // Audio element effects
     useEffect(() => {
@@ -160,116 +78,95 @@ const AudioPlayer = React.memo<AudioPlayerProps>(
       }
     }, [volume, playbackRate]);
 
+    // Handle play/pause
+    useEffect(() => {
+      if (audioRef.current) {
+        if (isPlaying) {
+          audioRef.current.play().catch(() => {
+            // Silently handle play failures (common in mobile browsers)
+          });
+        } else {
+          audioRef.current.pause();
+        }
+      }
+    }, [isPlaying]);
+
     const handleTimeUpdate = (e: React.SyntheticEvent<HTMLAudioElement>) => {
       const audio = e.target as HTMLAudioElement;
       onSeek?.(audio.currentTime);
     };
 
     return (
-      <Card className="space-y-4 p-6">
-        {/* Title */}
-        <h3 className="truncate font-medium text-lg">{title}</h3>
+      <Card
+        className={`space-y-6 border border-primary/20 bg-gradient-to-br from-background to-primary-light p-6 shadow-lg ${className}`}
+        role="region"
+        aria-label="音频播放器控制面板"
+      >
+        {/* 主要播放控制区域 */}
+        <div className="flex flex-col space-y-6">
+          {/* 播放信息和控制按钮 */}
+          <div className="flex flex-col space-y-4">
+            {/* 文件名 */}
+            <div className="text-center">
+              <h2
+                className="truncate px-4 font-bold text-foreground text-xl"
+                aria-label={`当前播放: ${title}`}
+              >
+                {title}
+              </h2>
+            </div>
 
-        {/* Waveform Display */}
-        {audioUrl && (
-          <WaveformDisplay
-            audioUrl={audioUrl}
-            currentTime={currentTime}
-            duration={duration}
-            onSeek={onSeek}
-            height={60}
-            showProgress={true}
-            color="#3b82f6"
-            progressColor="#10b981"
-          />
-        )}
+            {/* 播放控制按钮 */}
+            <div className="flex items-center justify-center space-x-6">
+              <AudioControls
+                isPlaying={isPlaying}
+                onPlayPause={handlePlayPause}
+                onSkipBack={onSkipBack}
+                onSkipForward={onSkipForward}
+                audioUrl={audioUrl}
+                compact={false}
+              />
+            </div>
 
-        {/* Progress bar */}
-        <div className="space-y-2">
-          <Slider
-            value={progressValue}
-            max={100}
-            step={0.1}
-            onValueChange={handleProgressChange}
-            className="w-full"
-          />
-          <div className="flex justify-between text-muted-foreground text-sm">
-            <span>{formattedCurrentTime}</span>
-            <span>{formattedDuration}</span>
-          </div>
-        </div>
+            {/* 高级控制 */}
+            <div className="flex items-center justify-center space-x-6">
+              <VolumeControl
+                isMuted={isMuted}
+                volume={volume}
+                onToggleMute={toggleMute}
+                onVolumeChange={handleVolumeChange}
+                compact={false}
+              />
 
-        {/* Controls */}
-        <div className="flex flex-col space-y-4">
-          {/* Main controls row */}
-          <div className="flex items-center justify-between">
-            <AudioControls
-              isPlaying={isPlaying}
-              onPlayPause={handlePlayPause}
-              onSkipBack={onSkipBack}
-              onSkipForward={onSkipForward}
-              audioUrl={audioUrl}
-            />
-
-            <VolumeControl
-              isMuted={isMuted}
-              volume={volume}
-              onToggleMute={toggleMute}
-              onVolumeChange={handleVolumeChange}
-            />
+              <PlaybackSpeedControl
+                playbackRate={playbackRate}
+                onPlaybackRateChange={handlePlaybackRateChange}
+                compact={false}
+              />
+            </div>
           </div>
 
-          {/* Advanced controls row */}
-          <div className="flex items-center justify-between">
-            <LoopControls
-              loopStart={loopStart}
-              _loopEnd={loopEnd}
-              abLoopStart={abLoopStart}
-              _abLoopEnd={abLoopEnd}
-              formattedLoopTime={formattedLoopTime}
-              formattedAbLoopTime={formattedAbLoopTime}
-              getAbLoopStatus={getAbLoopStatus}
-              onSetLoop={handleLoopToggle}
-              onClearLoop={onClearLoop}
-              onSetAbLoop={handleAbLoopSet}
-              onClearAbLoop={handleAbLoopClear}
-            />
-
-            <PlaybackSpeedControl
-              playbackRate={playbackRate}
-              onPlaybackRateChange={handlePlaybackRateChange}
-            />
-          </div>
-
-          {/* A-B Loop custom input */}
-          {(abLoopMode !== 'idle' || showAdvancedControls) && (
-            <AbLoopInput
-              customLoopStart={customLoopStart}
-              customLoopEnd={customLoopEnd}
-              onCustomLoopStartChange={setCustomLoopStart}
-              onCustomLoopEndChange={setCustomLoopEnd}
-              onCustomLoopApply={handleCustomLoopApply}
-            />
+          {/* 隐藏的音频元素 */}
+          {audioUrl && (
+            <audio
+              ref={audioRef}
+              src={audioUrl}
+              onTimeUpdate={handleTimeUpdate}
+              onEnded={onPause}
+              aria-label={`音频播放器: ${title}`}
+              preload="metadata"
+            >
+              <track kind="captions" srcLang="zh" label="中文字幕" default />
+              <track kind="captions" srcLang="en" label="English subtitles" />
+              您的浏览器不支持音频播放。
+            </audio>
           )}
         </div>
-
-        {/* Keyboard shortcuts help */}
-        <KeyboardShortcutsHelp
-          showAdvancedControls={showAdvancedControls}
-          onToggleAdvancedControls={() => setShowAdvancedControls(!showAdvancedControls)}
-        />
-
-        {/* Hidden audio element */}
-        {audioUrl && (
-          <audio ref={audioRef} src={audioUrl} onTimeUpdate={handleTimeUpdate} onEnded={onPause}>
-            <track kind="captions" src="" srcLang="en" label="English" />
-          </audio>
-        )}
       </Card>
     );
-  }
+  },
 );
 
-AudioPlayer.displayName = 'AudioPlayer';
+AudioPlayer.displayName = "AudioPlayer";
 
 export default AudioPlayer;

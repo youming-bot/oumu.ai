@@ -1,4 +1,4 @@
-import { URLManager } from '../../../src/lib/url-manager';
+import { URLManager } from "../../../src/lib/url-manager";
 
 // Mock global URL object
 const mockCreateObjectUrl = jest.fn();
@@ -9,12 +9,12 @@ global.URL = {
   revokeObjectURL: mockRevokeObjectUrl,
 } as typeof URL;
 
-describe('URLManager', () => {
+describe("URLManager", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Clear active URLs between tests
     URLManager.revokeAllURLs();
-    mockCreateObjectUrl.mockReturnValue('blob:mock-url-123');
+    mockCreateObjectUrl.mockReturnValue("blob:mock-url-123");
   });
 
   afterEach(() => {
@@ -22,35 +22,35 @@ describe('URLManager', () => {
     URLManager.revokeAllURLs();
   });
 
-  describe('createObjectURL', () => {
-    it('should create and track object URL', () => {
-      const blob = new Blob(['test'], { type: 'text/plain' });
+  describe("createObjectURL", () => {
+    it("should create and track object URL", () => {
+      const blob = new Blob(["test"], { type: "text/plain" });
 
       const url = URLManager.createObjectURL(blob);
 
       expect(mockCreateObjectUrl).toHaveBeenCalledWith(blob);
-      expect(url).toBe('blob:mock-url-123');
+      expect(url).toBe("blob:mock-url-123");
       expect(URLManager.getActiveUrlCount()).toBe(1);
     });
 
-    it('should track multiple URLs', () => {
-      const blob1 = new Blob(['test1'], { type: 'text/plain' });
-      const blob2 = new Blob(['test2'], { type: 'text/plain' });
+    it("should track multiple URLs", () => {
+      const blob1 = new Blob(["test1"], { type: "text/plain" });
+      const blob2 = new Blob(["test2"], { type: "text/plain" });
 
-      mockCreateObjectUrl.mockReturnValueOnce('blob:url-1').mockReturnValueOnce('blob:url-2');
+      mockCreateObjectUrl.mockReturnValueOnce("blob:url-1").mockReturnValueOnce("blob:url-2");
 
       const url1 = URLManager.createObjectURL(blob1);
       const url2 = URLManager.createObjectURL(blob2);
 
-      expect(url1).toBe('blob:url-1');
-      expect(url2).toBe('blob:url-2');
+      expect(url1).toBe("blob:url-1");
+      expect(url2).toBe("blob:url-2");
       expect(URLManager.getActiveUrlCount()).toBe(2);
     });
   });
 
-  describe('revokeObjectURL', () => {
-    it('should revoke tracked URL', () => {
-      const blob = new Blob(['test'], { type: 'text/plain' });
+  describe("revokeObjectURL", () => {
+    it("should revoke tracked URL", () => {
+      const blob = new Blob(["test"], { type: "text/plain" });
       const url = URLManager.createObjectURL(blob);
 
       URLManager.revokeObjectURL(url);
@@ -59,8 +59,8 @@ describe('URLManager', () => {
       expect(URLManager.getActiveUrlCount()).toBe(0);
     });
 
-    it('should not revoke untracked URL', () => {
-      const untrackedUrl = 'blob:untracked-url';
+    it("should not revoke untracked URL", () => {
+      const untrackedUrl = "blob:untracked-url";
 
       URLManager.revokeObjectURL(untrackedUrl);
 
@@ -68,8 +68,8 @@ describe('URLManager', () => {
       expect(URLManager.getActiveUrlCount()).toBe(0);
     });
 
-    it('should handle revoking already revoked URL', () => {
-      const blob = new Blob(['test'], { type: 'text/plain' });
+    it("should handle revoking already revoked URL", () => {
+      const blob = new Blob(["test"], { type: "text/plain" });
       const url = URLManager.createObjectURL(blob);
 
       // Revoke once
@@ -85,16 +85,16 @@ describe('URLManager', () => {
     });
   });
 
-  describe('revokeAllURLs', () => {
-    it('should revoke all tracked URLs', () => {
-      const blob1 = new Blob(['test1'], { type: 'text/plain' });
-      const blob2 = new Blob(['test2'], { type: 'text/plain' });
-      const blob3 = new Blob(['test3'], { type: 'text/plain' });
+  describe("revokeAllURLs", () => {
+    it("should revoke all tracked URLs", () => {
+      const blob1 = new Blob(["test1"], { type: "text/plain" });
+      const blob2 = new Blob(["test2"], { type: "text/plain" });
+      const blob3 = new Blob(["test3"], { type: "text/plain" });
 
       mockCreateObjectUrl
-        .mockReturnValueOnce('blob:url-1')
-        .mockReturnValueOnce('blob:url-2')
-        .mockReturnValueOnce('blob:url-3');
+        .mockReturnValueOnce("blob:url-1")
+        .mockReturnValueOnce("blob:url-2")
+        .mockReturnValueOnce("blob:url-3");
 
       URLManager.createObjectURL(blob1);
       URLManager.createObjectURL(blob2);
@@ -105,13 +105,13 @@ describe('URLManager', () => {
       URLManager.revokeAllURLs();
 
       expect(mockRevokeObjectUrl).toHaveBeenCalledTimes(3);
-      expect(mockRevokeObjectUrl).toHaveBeenCalledWith('blob:url-1');
-      expect(mockRevokeObjectUrl).toHaveBeenCalledWith('blob:url-2');
-      expect(mockRevokeObjectUrl).toHaveBeenCalledWith('blob:url-3');
+      expect(mockRevokeObjectUrl).toHaveBeenCalledWith("blob:url-1");
+      expect(mockRevokeObjectUrl).toHaveBeenCalledWith("blob:url-2");
+      expect(mockRevokeObjectUrl).toHaveBeenCalledWith("blob:url-3");
       expect(URLManager.getActiveUrlCount()).toBe(0);
     });
 
-    it('should handle empty URL list', () => {
+    it("should handle empty URL list", () => {
       URLManager.revokeAllURLs();
 
       expect(mockRevokeObjectUrl).not.toHaveBeenCalled();
@@ -119,14 +119,14 @@ describe('URLManager', () => {
     });
   });
 
-  describe('getActiveUrlCount', () => {
-    it('should return correct count', () => {
+  describe("getActiveUrlCount", () => {
+    it("should return correct count", () => {
       expect(URLManager.getActiveUrlCount()).toBe(0);
 
-      const blob1 = new Blob(['test1']);
-      const blob2 = new Blob(['test2']);
+      const blob1 = new Blob(["test1"]);
+      const blob2 = new Blob(["test2"]);
 
-      mockCreateObjectUrl.mockReturnValueOnce('blob:url-1').mockReturnValueOnce('blob:url-2');
+      mockCreateObjectUrl.mockReturnValueOnce("blob:url-1").mockReturnValueOnce("blob:url-2");
 
       URLManager.createObjectURL(blob1);
       expect(URLManager.getActiveUrlCount()).toBe(1);
@@ -134,7 +134,7 @@ describe('URLManager', () => {
       URLManager.createObjectURL(blob2);
       expect(URLManager.getActiveUrlCount()).toBe(2);
 
-      URLManager.revokeObjectURL('blob:url-1');
+      URLManager.revokeObjectURL("blob:url-1");
       expect(URLManager.getActiveUrlCount()).toBe(1);
 
       URLManager.revokeAllURLs();
@@ -142,7 +142,7 @@ describe('URLManager', () => {
     });
   });
 
-  describe('createTemporaryURL', () => {
+  describe("createTemporaryURL", () => {
     beforeEach(() => {
       jest.useFakeTimers();
     });
@@ -151,12 +151,12 @@ describe('URLManager', () => {
       jest.useRealTimers();
     });
 
-    it('should create temporary URL with default timeout', () => {
-      const blob = new Blob(['test'], { type: 'text/plain' });
+    it("should create temporary URL with default timeout", () => {
+      const blob = new Blob(["test"], { type: "text/plain" });
 
       const url = URLManager.createTemporaryURL(blob);
 
-      expect(url).toBe('blob:mock-url-123');
+      expect(url).toBe("blob:mock-url-123");
       expect(URLManager.getActiveUrlCount()).toBe(1);
 
       // Fast-forward to just before default timeout (5 minutes)
@@ -169,8 +169,8 @@ describe('URLManager', () => {
       expect(URLManager.getActiveUrlCount()).toBe(0);
     });
 
-    it('should create temporary URL with custom timeout', () => {
-      const blob = new Blob(['test'], { type: 'text/plain' });
+    it("should create temporary URL with custom timeout", () => {
+      const blob = new Blob(["test"], { type: "text/plain" });
       const customTimeout = 10000; // 10 seconds
 
       const url = URLManager.createTemporaryURL(blob, customTimeout);
@@ -187,13 +187,13 @@ describe('URLManager', () => {
       expect(URLManager.getActiveUrlCount()).toBe(0);
     });
 
-    it('should handle multiple temporary URLs with different timeouts', () => {
-      const blob1 = new Blob(['test1']);
-      const blob2 = new Blob(['test2']);
+    it("should handle multiple temporary URLs with different timeouts", () => {
+      const blob1 = new Blob(["test1"]);
+      const blob2 = new Blob(["test2"]);
 
       mockCreateObjectUrl
-        .mockReturnValueOnce('blob:temp-url-1')
-        .mockReturnValueOnce('blob:temp-url-2');
+        .mockReturnValueOnce("blob:temp-url-1")
+        .mockReturnValueOnce("blob:temp-url-2");
 
       const url1 = URLManager.createTemporaryURL(blob1, 5000); // 5 seconds
       const url2 = URLManager.createTemporaryURL(blob2, 10000); // 10 seconds
@@ -211,8 +211,8 @@ describe('URLManager', () => {
       expect(URLManager.getActiveUrlCount()).toBe(0);
     });
 
-    it('should not affect manual revocation before timeout', () => {
-      const blob = new Blob(['test'], { type: 'text/plain' });
+    it("should not affect manual revocation before timeout", () => {
+      const blob = new Blob(["test"], { type: "text/plain" });
 
       const url = URLManager.createTemporaryURL(blob, 10000);
       expect(URLManager.getActiveUrlCount()).toBe(1);
@@ -227,8 +227,8 @@ describe('URLManager', () => {
       expect(mockRevokeObjectUrl).not.toHaveBeenCalled();
     });
 
-    it('should handle zero timeout', () => {
-      const blob = new Blob(['test'], { type: 'text/plain' });
+    it("should handle zero timeout", () => {
+      const blob = new Blob(["test"], { type: "text/plain" });
 
       const url = URLManager.createTemporaryURL(blob, 0);
       expect(URLManager.getActiveUrlCount()).toBe(1);
@@ -240,16 +240,16 @@ describe('URLManager', () => {
     });
   });
 
-  describe('integration scenarios', () => {
-    it('should handle mixed regular and temporary URLs', () => {
+  describe("integration scenarios", () => {
+    it("should handle mixed regular and temporary URLs", () => {
       jest.useFakeTimers();
 
-      const blob1 = new Blob(['regular']);
-      const blob2 = new Blob(['temporary']);
+      const blob1 = new Blob(["regular"]);
+      const blob2 = new Blob(["temporary"]);
 
       mockCreateObjectUrl
-        .mockReturnValueOnce('blob:regular-url')
-        .mockReturnValueOnce('blob:temp-url');
+        .mockReturnValueOnce("blob:regular-url")
+        .mockReturnValueOnce("blob:temp-url");
 
       const regularUrl = URLManager.createObjectURL(blob1);
       const _tempUrl = URLManager.createTemporaryURL(blob2, 5000);
@@ -267,10 +267,10 @@ describe('URLManager', () => {
       jest.useRealTimers();
     });
 
-    it('should properly clean up when revokeAllURLs is called with pending timeouts', () => {
+    it("should properly clean up when revokeAllURLs is called with pending timeouts", () => {
       jest.useFakeTimers();
 
-      const blob = new Blob(['test']);
+      const blob = new Blob(["test"]);
       URLManager.createTemporaryURL(blob, 10000);
 
       expect(URLManager.getActiveUrlCount()).toBe(1);

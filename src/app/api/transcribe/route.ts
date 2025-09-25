@@ -1,113 +1,187 @@
-import { Groq } from 'groq-sdk';
-import type { NextRequest } from 'next/server';
+import type { NextRequest } from "next/server";
+import { z } from "zod";
+import { apiError, apiSuccess } from "@/lib/api-response";
+import { groqClient } from "@/lib/groq-client";
+
+// Zod schemas for validation
+const transcribeQuerySchema = z.object({
+  fileId: z.string().min(1, "fileId is required"),
+  chunkIndex: z.coerce.number().int().min(0).optional(),
+  offsetSec: z.coerce.number().min(0).optional(),
+  language: z.string().optional().default("auto"),
+});
+
+const transcribeFormSchema = z.object({
+  audio: z.instanceof(File, { message: "Audio file is required" }),
+  meta: z
+    .object({
+      fileId: z.string().optional(),
+      chunkIndex: z.number().int().min(0).optional(),
+      offsetSec: z.number().min(0).optional(),
+    })
+    .optional(),
+});
+
+// Helper function to validate query parameters
+function validateQueryParams(searchParams: Record<string, string>) {
+  const validatedQuery = transcribeQuerySchema.safeParse(searchParams);
+  if (!validatedQuery.success) {
+    const issues = validatedQuery.error.issues.reduce(
+      (acc, issue, index) => {
+        acc[`issue_${index}`] = {
+          code: issue.code,
+          message: issue.message,
+          path: issue.path.join("."),
+        };
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    );
+    return {
+      success: false as const,
+      error: apiError({
+        code: "VALIDATION_ERROR",
+        message: "Invalid request parameters",
+        details: issues,
+        statusCode: 400,
+      }),
+    };
+  }
+  return { success: true as const, data: validatedQuery.data };
+}
+
+// Helper function to validate form data
+function validateFormData(formData: FormData) {
+  const uploadedFile = formData.get("audio") ?? formData.get("file");
+
+  if (!(uploadedFile instanceof File)) {
+    return {
+      success: false as const,
+      error: apiError({
+        code: "VALIDATION_ERROR",
+        message: "Audio file is required",
+        details: { reason: "MISSING_AUDIO" },
+        statusCode: 400,
+      }),
+    };
+  }
+
+  let parsedMeta: unknown;
+  const rawMeta = formData.get("meta");
+  if (typeof rawMeta === "string" && rawMeta.trim().length > 0) {
+    try {
+      parsedMeta = JSON.parse(rawMeta);
+    } catch (metaError) {
+      return {
+        success: false as const,
+        error: apiError({
+          code: "VALIDATION_ERROR",
+          message: "Invalid metadata payload",
+          details: {
+            reason: "INVALID_META_JSON",
+            error: metaError instanceof Error ? metaError.message : String(metaError),
+          },
+          statusCode: 400,
+        }),
+      };
+    }
+  }
+
+  const validatedForm = transcribeFormSchema.safeParse({
+    audio: uploadedFile,
+    meta: parsedMeta,
+  });
+
+  if (!validatedForm.success) {
+    const issues = validatedForm.error.issues.reduce(
+      (acc, issue, index) => {
+        acc[`issue_${index}`] = {
+          code: issue.code,
+          message: issue.message,
+          path: issue.path.join("."),
+        };
+        return acc;
+      },
+      {} as Record<string, unknown>,
+    );
+    return {
+      success: false as const,
+      error: apiError({
+        code: "VALIDATION_ERROR",
+        message: "Invalid form data",
+        details: issues,
+        statusCode: 400,
+      }),
+    };
+  }
+
+  return { success: true as const, data: validatedForm.data };
+}
+
+// Helper function to process transcription
+async function processTranscription(uploadedFile: File, language: string) {
+  try {
+    const result = await groqClient.transcribe(uploadedFile, {
+      language,
+      model: "whisper-large-v3-turbo",
+      responseFormat: "verbose_json",
+      temperature: 0,
+    });
+    return { success: true as const, data: result };
+  } catch (transcriptionError) {
+    const errorMessage =
+      transcriptionError instanceof Error ? transcriptionError.message : "Transcription failed";
+    return {
+      success: false as const,
+      error: apiError({
+        code: "TRANSCRIPTION_FAILED",
+        message: "Audio transcription failed",
+        details: { error: errorMessage },
+        statusCode: 500,
+      }),
+    };
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
+    // Parse and validate query parameters
+    const url = new URL(request.url);
+    const searchParams = Object.fromEntries(url.searchParams);
+    const queryValidation = validateQueryParams(searchParams);
+    if (!queryValidation.success) {
+      return queryValidation.error;
+    }
+
+    const { language } = queryValidation.data;
+
+    // Parse and validate form data
     const formData = await request.formData();
-    const file = formData.get('file') as File;
-    const language = (formData.get('language') as string) || 'en';
-    const model = (formData.get('model') as string) || 'whisper-large-v3-turbo';
-    const responseFormat = (formData.get('response_format') as string) || 'verbose_json';
-    const temperature = (formData.get('temperature') as string) || '0';
-
-    if (!file) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: 'NO_FILE',
-            message: 'No audio file provided',
-          },
-        }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
+    const formValidation = validateFormData(formData);
+    if (!formValidation.success) {
+      return formValidation.error;
     }
 
-    // 检查 Groq API 密钥是否存在
-    if (!process.env.GROQ_API_KEY) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: {
-            code: 'CONFIGURATION_ERROR',
-            message:
-              'GROQ_API_KEY environment variable is not set. Please configure your API key in the environment settings.',
-          },
-        }),
-        {
-          status: 500,
-          headers: {
-            'Content-Type': 'application/json',
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            Pragma: 'no-cache',
-            Expires: '0',
-          },
-        }
-      );
+    // Process transcription
+    const transcriptionResult = await processTranscription(formValidation.data.audio, language);
+    if (!transcriptionResult.success) {
+      return transcriptionResult.error;
     }
 
-    const groq = new Groq({
-      apiKey: process.env.GROQ_API_KEY,
-    });
-
-    // 直接发送文件给Groq进行处理
-    const transcription = (await groq.audio.transcriptions.create({
-      file: file,
-      model: model,
-      language: language,
-      response_format: responseFormat as 'verbose_json',
-      temperature: parseFloat(temperature),
-    })) as any;
-
-    // 处理转录结果，确保格式正确
-    const segments = Array.isArray(transcription.segments)
-      ? transcription.segments.map((segment: any, index: number) => ({
-          ...segment,
-          id: segment.id ?? index + 1,
-        }))
-      : [];
-
-    const response = {
-      success: true,
-      data: {
-        text: transcription.text,
-        language: transcription.language || language,
-        duration: transcription.duration,
-        segments: segments,
-        task: transcription.task,
-        x_groq: transcription.x_groq,
-      },
-    };
-
-    return new Response(JSON.stringify(response), {
-      headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        Pragma: 'no-cache',
-        Expires: '0',
-      },
+    return apiSuccess({
+      status: "completed",
+      text: transcriptionResult.data.text,
+      language: transcriptionResult.data.language ?? language,
+      duration: transcriptionResult.data.duration,
+      segments: transcriptionResult.data.segments,
+      meta: formValidation.data.meta,
     });
   } catch (error) {
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: {
-          code: 'TRANSCRIPTION_ERROR',
-          message: error instanceof Error ? error.message : 'Unknown error',
-        },
-      }),
-      {
-        status: 500,
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          Pragma: 'no-cache',
-          Expires: '0',
-        },
-      }
-    );
+    return apiError({
+      code: "INTERNAL_ERROR",
+      message: "Internal server error during transcription",
+      details: error instanceof Error ? { message: error.message, stack: error.stack } : undefined,
+      statusCode: 500,
+    });
   }
 }

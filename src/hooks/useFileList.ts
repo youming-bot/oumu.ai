@@ -1,12 +1,12 @@
-import { useCallback, useMemo, useState } from 'react';
-import type { FileRow, ProcessingStatus, TranscriptRow } from '@/types/database';
+import { useCallback, useMemo, useState } from "react";
+import type { FileRow, ProcessingStatus, TranscriptRow } from "@/types/database";
 
 interface FileListState {
   selectedFiles: Set<number>;
   searchQuery: string;
-  sortBy: 'name' | 'size' | 'duration' | 'createdAt';
-  sortOrder: 'asc' | 'desc';
-  statusFilter: ProcessingStatus | 'all';
+  sortBy: "name" | "size" | "duration" | "createdAt";
+  sortOrder: "asc" | "desc";
+  statusFilter: ProcessingStatus | "all";
 }
 
 interface UseFileListProps {
@@ -18,9 +18,9 @@ interface UseFileListReturn {
   // State
   selectedFiles: Set<number>;
   searchQuery: string;
-  sortBy: 'name' | 'size' | 'duration' | 'createdAt';
-  sortOrder: 'asc' | 'desc';
-  statusFilter: ProcessingStatus | 'all';
+  sortBy: "name" | "size" | "duration" | "createdAt";
+  sortOrder: "asc" | "desc";
+  statusFilter: ProcessingStatus | "all";
 
   // Computed values
   filteredAndSortedFiles: FileRow[];
@@ -29,21 +29,21 @@ interface UseFileListReturn {
   // Actions
   setSelectedFiles: (files: Set<number>) => void;
   setSearchQuery: (query: string) => void;
-  setSortBy: (field: 'name' | 'size' | 'duration' | 'createdAt') => void;
-  setSortOrder: (order: 'asc' | 'desc') => void;
-  setStatusFilter: (filter: ProcessingStatus | 'all') => void;
+  setSortBy: (field: "name" | "size" | "duration" | "createdAt") => void;
+  setSortOrder: (order: "asc" | "desc") => void;
+  setStatusFilter: (filter: ProcessingStatus | "all") => void;
   handleSelectAll: () => void;
   handleSelectFile: (fileId: number) => void;
-  handleSort: (field: 'name' | 'size' | 'duration' | 'createdAt') => void;
+  handleSort: (field: "name" | "size" | "duration" | "createdAt") => void;
 }
 
 export function useFileList({ files, transcripts }: UseFileListProps): UseFileListReturn {
   const [state, setState] = useState<FileListState>({
     selectedFiles: new Set(),
-    searchQuery: '',
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
-    statusFilter: 'all',
+    searchQuery: "",
+    sortBy: "createdAt",
+    sortOrder: "desc",
+    statusFilter: "all",
   });
 
   // Memoize transcript status lookup for better performance
@@ -54,15 +54,15 @@ export function useFileList({ files, transcripts }: UseFileListProps): UseFileLi
       if (!file.id) return;
 
       const fileTranscripts = transcripts.filter((t) => t.fileId === file.id);
+
       if (fileTranscripts.length === 0) {
-        statusMap.set(file.id, 'pending');
+        statusMap.set(file.id, "pending");
         return;
       }
 
       const latestTranscript = fileTranscripts.reduce((latest, current) =>
-        current.createdAt > latest.createdAt ? current : latest
+        current.createdAt > latest.createdAt ? current : latest,
       );
-
       statusMap.set(file.id, latestTranscript.status);
     });
 
@@ -81,7 +81,7 @@ export function useFileList({ files, transcripts }: UseFileListProps): UseFileLi
         }
 
         // 状态过滤
-        if (statusFilter !== 'all') {
+        if (statusFilter !== "all") {
           const fileStatus = transcriptStatusMap.get(file.id || 0);
           return fileStatus === statusFilter;
         }
@@ -89,19 +89,19 @@ export function useFileList({ files, transcripts }: UseFileListProps): UseFileLi
         return true;
       });
     },
-    [state.searchQuery, state.statusFilter, transcriptStatusMap, state]
+    [state.searchQuery, state.statusFilter, transcriptStatusMap, state],
   );
 
   // 获取排序值
   const getSortValue = useCallback((file: FileRow, sortBy: string): string | number => {
     switch (sortBy) {
-      case 'name':
+      case "name":
         return file.name.toLowerCase();
-      case 'size':
+      case "size":
         return file.size;
-      case 'duration':
+      case "duration":
         return file.duration || 0;
-      case 'createdAt':
+      case "createdAt":
         return file.createdAt.getTime();
       default:
         return file.createdAt.getTime();
@@ -110,13 +110,13 @@ export function useFileList({ files, transcripts }: UseFileListProps): UseFileLi
 
   // 简化的排序比较函数
   const compareValues = useCallback(
-    (a: string | number, b: string | number, order: 'asc' | 'desc') => {
+    (a: string | number, b: string | number, order: "asc" | "desc") => {
       if (a === b) return 0;
 
       const comparison = a < b ? -1 : 1;
-      return order === 'asc' ? comparison : -comparison;
+      return order === "asc" ? comparison : -comparison;
     },
-    []
+    [],
   );
 
   // 排序逻辑
@@ -133,7 +133,7 @@ export function useFileList({ files, transcripts }: UseFileListProps): UseFileLi
 
       return filesCopy;
     },
-    [state.sortBy, state.sortOrder, getSortValue, compareValues, state]
+    [state.sortBy, state.sortOrder, getSortValue, compareValues, state],
   );
 
   // 组合过滤和排序
@@ -147,16 +147,16 @@ export function useFileList({ files, transcripts }: UseFileListProps): UseFileLi
     <K extends keyof FileListState>(field: K, value: FileListState[K]) => {
       setState((prev) => ({ ...prev, [field]: value }));
     },
-    []
+    [],
   );
 
   // 处理全选
   const handleSelectAll = useCallback(() => {
     setStateField(
-      'selectedFiles',
+      "selectedFiles",
       state.selectedFiles.size === filteredAndSortedFiles.length
         ? new Set()
-        : new Set(filteredAndSortedFiles.map((file) => file.id).filter(Boolean) as number[])
+        : new Set(filteredAndSortedFiles.map((file) => file.id).filter(Boolean) as number[]),
     );
   }, [state.selectedFiles.size, filteredAndSortedFiles, setStateField]);
 
@@ -169,22 +169,22 @@ export function useFileList({ files, transcripts }: UseFileListProps): UseFileLi
       } else {
         newSet.add(fileId);
       }
-      setStateField('selectedFiles', newSet);
+      setStateField("selectedFiles", newSet);
     },
-    [state.selectedFiles, setStateField]
+    [state.selectedFiles, setStateField],
   );
 
   // 处理排序
   const handleSort = useCallback(
-    (field: 'name' | 'size' | 'duration' | 'createdAt') => {
+    (field: "name" | "size" | "duration" | "createdAt") => {
       if (state.sortBy === field) {
-        setStateField('sortOrder', state.sortOrder === 'asc' ? 'desc' : 'asc');
+        setStateField("sortOrder", state.sortOrder === "asc" ? "desc" : "asc");
       } else {
-        setStateField('sortBy', field);
-        setStateField('sortOrder', 'desc');
+        setStateField("sortBy", field);
+        setStateField("sortOrder", "desc");
       }
     },
-    [state.sortBy, state.sortOrder, setStateField]
+    [state.sortBy, state.sortOrder, setStateField],
   );
 
   return {
@@ -200,11 +200,11 @@ export function useFileList({ files, transcripts }: UseFileListProps): UseFileLi
     transcriptStatusMap,
 
     // Actions
-    setSelectedFiles: (files) => setStateField('selectedFiles', files),
-    setSearchQuery: (query) => setStateField('searchQuery', query),
-    setSortBy: (field) => setStateField('sortBy', field),
-    setSortOrder: (order) => setStateField('sortOrder', order),
-    setStatusFilter: (filter) => setStateField('statusFilter', filter),
+    setSelectedFiles: (files) => setStateField("selectedFiles", files),
+    setSearchQuery: (query) => setStateField("searchQuery", query),
+    setSortBy: (field) => setStateField("sortBy", field),
+    setSortOrder: (order) => setStateField("sortOrder", order),
+    setStatusFilter: (filter) => setStateField("statusFilter", filter),
     handleSelectAll,
     handleSelectFile,
     handleSort,

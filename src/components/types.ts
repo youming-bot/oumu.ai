@@ -1,7 +1,7 @@
-import type { FileRow, TranscriptRow } from '@/types/database';
+import type { FileRow, TranscriptRow } from "@/types/database";
 
 export interface ViewState {
-  currentView: 'upload' | 'files' | 'player' | 'settings' | 'terminology';
+  currentView: "files" | "settings";
   selectedFile?: FileRow;
   isPlaying: boolean;
   currentTime: number;
@@ -30,7 +30,7 @@ export interface AppState {
   isLoading: boolean;
 }
 
-export type ViewChangeHandler = (view: ViewState['currentView']) => void;
+export type ViewChangeHandler = (view: ViewState["currentView"]) => void;
 export type FileSelectHandler = (files: File[]) => void;
 export type FileActionHandler = (fileId: number) => void;
 export type FilePlayHandler = (file: FileRow) => void;

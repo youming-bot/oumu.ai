@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useState } from "react";
 
 interface SmoothTransitionProps {
   children: ReactNode;
@@ -13,7 +13,7 @@ export default function SmoothTransition({
   children,
   isVisible,
   duration = 300,
-  className = '',
+  className = "",
 }: SmoothTransitionProps) {
   const [shouldRender, setShouldRender] = useState(isVisible);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -46,7 +46,7 @@ export default function SmoothTransition({
       style={{
         transition: `all ${duration}ms cubic-bezier(0.4, 0, 0.2, 1)`,
         opacity: isAnimating ? 1 : 0,
-        transform: isAnimating ? 'translateY(0)' : 'translateY(10px)',
+        transform: isAnimating ? "translateY(0)" : "translateY(10px)",
       }}
     >
       {children}
@@ -59,7 +59,7 @@ export function FadeTransition({
   children,
   isVisible,
   duration = 300,
-  className = '',
+  className = "",
 }: SmoothTransitionProps) {
   const [shouldRender, setShouldRender] = useState(isVisible);
 
@@ -94,10 +94,10 @@ export function FadeTransition({
 export function SlideTransition({
   children,
   isVisible,
-  direction = 'up',
+  direction = "up",
   duration = 300,
-  className = '',
-}: SmoothTransitionProps & { direction?: 'up' | 'down' | 'left' | 'right' }) {
+  className = "",
+}: SmoothTransitionProps & { direction?: "up" | "down" | "left" | "right" }) {
   const [shouldRender, setShouldRender] = useState(isVisible);
 
   useEffect(() => {
@@ -115,19 +115,19 @@ export function SlideTransition({
   const getTransform = () => {
     if (!isVisible) {
       switch (direction) {
-        case 'up':
-          return 'translateY(20px)';
-        case 'down':
-          return 'translateY(-20px)';
-        case 'left':
-          return 'translateX(20px)';
-        case 'right':
-          return 'translateX(-20px)';
+        case "up":
+          return "translateY(20px)";
+        case "down":
+          return "translateY(-20px)";
+        case "left":
+          return "translateX(20px)";
+        case "right":
+          return "translateX(-20px)";
         default:
-          return 'translateY(20px)';
+          return "translateY(20px)";
       }
     }
-    return 'translate(0)';
+    return "translate(0)";
   };
 
   if (!shouldRender) return null;

@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import type { ComponentType, ReactNode } from 'react';
-import React, { Suspense } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ComponentErrorBoundary } from './error-boundary';
+import type { ComponentType, ReactNode } from "react";
+import React, { Suspense } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ComponentErrorBoundary } from "./error-boundary";
 
 interface AsyncComponentProps {
   fallback?: ReactNode;
@@ -37,7 +37,7 @@ export function AsyncErrorBoundary({ errorFallback, children }: AsyncComponentPr
  */
 export function withErrorBoundary<P extends object>(
   Component: ComponentType<P>,
-  fallback?: ReactNode
+  fallback?: ReactNode,
 ): ComponentType<P> {
   return function WithErrorBoundary(props: P) {
     return (
@@ -57,7 +57,7 @@ export function withAsyncErrorBoundary<T extends Promise<unknown>>(
     fallback?: ReactNode;
     errorFallback?: ReactNode;
     onError?: (error: Error) => void;
-  } = {}
+  } = {},
 ) {
   return {
     component: function AsyncComponent() {
@@ -80,9 +80,9 @@ function AsyncComponentWrapper<T extends Promise<unknown>>({ asyncFn }: { asyncF
   return React.createElement(
     React.lazy(() =>
       asyncFn().then((result) => ({
-        default: () => React.createElement('div', {}, JSON.stringify(result)),
-      }))
-    )
+        default: () => React.createElement("div", {}, JSON.stringify(result)),
+      })),
+    ),
   );
 }
 

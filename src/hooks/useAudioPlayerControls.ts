@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback } from "react";
 
 export interface UseAudioPlayerControlsProps {
   onPlay?: () => void;
@@ -35,7 +35,7 @@ export function useAudioPlayerControls({
     (value: number[]) => {
       onSeek?.(value[0]);
     },
-    [onSeek]
+    [onSeek],
   );
 
   const handleLoopToggle = useCallback(() => {

@@ -12,13 +12,21 @@ export interface FileRow {
 export interface TranscriptRow {
   id?: number;
   fileId: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: "pending" | "processing" | "completed" | "failed";
   rawText?: string;
   language?: string;
   error?: string;
   processingTime?: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface AudioPlayerState {
+  currentTime: number;
+  duration: number;
+  isPlaying: boolean;
+  volume: number;
+  isMuted: boolean;
 }
 
 export interface WordTimestamp {
@@ -51,19 +59,7 @@ export interface TranscriptWithSegments extends TranscriptRow {
   segments: Segment[];
 }
 
-export interface Term {
-  id?: number;
-  word: string;
-  reading?: string;
-  meaning: string;
-  category?: string;
-  examples?: string[];
-  tags?: string[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export type ProcessingStatus = 'pending' | 'processing' | 'completed' | 'failed';
+export type ProcessingStatus = "pending" | "processing" | "completed" | "failed";
 
 export interface DatabaseStats {
   totalFiles: number;

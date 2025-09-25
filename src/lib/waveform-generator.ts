@@ -13,7 +13,7 @@ export interface WaveformConfig {
 
 export async function generateWaveform(
   blob: Blob,
-  config: WaveformConfig = {}
+  config: WaveformConfig = {},
 ): Promise<WaveformData> {
   const {
     resolution = 100, // 100 points per second
@@ -67,7 +67,7 @@ export async function generateWaveform(
     };
   } catch (error) {
     throw new Error(
-      `Failed to generate waveform: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Failed to generate waveform: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   } finally {
     await audioContext.close();
@@ -98,9 +98,9 @@ function smoothPeaks(peaks: number[], windowSize: number): number[] {
 
 export async function generateWaveformForFile(
   fileId: number,
-  config?: WaveformConfig
+  config?: WaveformConfig,
 ): Promise<WaveformData> {
-  const { FileUploadUtils } = await import('./file-upload');
+  const { FileUploadUtils } = await import("./file-upload");
   const blob = await FileUploadUtils.getFileBlob(fileId);
 
   return await generateWaveform(blob, config);

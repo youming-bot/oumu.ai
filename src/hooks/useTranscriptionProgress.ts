@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { handleSilently } from '@/lib/error-handler';
-import type { FileRow, TranscriptRow } from '@/types/database';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { handleSilently } from "@/lib/error-handler";
+import type { FileRow, TranscriptRow } from "@/types/database";
 
 export interface TranscriptionProgress {
   progress: number;
@@ -19,7 +19,7 @@ export interface UseTranscriptionProgressReturn {
  */
 export function useTranscriptionProgress(
   files: FileRow[],
-  transcripts: TranscriptRow[]
+  transcripts: TranscriptRow[],
 ): UseTranscriptionProgressReturn {
   const [transcriptionProgress, setTranscriptionProgress] = useState<
     Map<number, TranscriptionProgress>
@@ -31,7 +31,7 @@ export function useTranscriptionProgress(
       if (!file.id) return false;
       // Check if this file has any processing transcripts
       const fileTranscripts = transcripts.filter((t) => t.fileId === file.id);
-      return fileTranscripts.some((t) => t.status === 'processing');
+      return fileTranscripts.some((t) => t.status === "processing");
     });
   }, [files, transcripts]);
 
@@ -63,7 +63,7 @@ export function useTranscriptionProgress(
 
       try {
         // Import the transcription service to get progress
-        const { TranscriptionService } = await import('@/lib/transcription-service');
+        const { TranscriptionService } = await import("@/lib/transcription-service");
         const progress = await TranscriptionService.getTranscriptionProgress(file.id);
 
         updateProgress(file.id, {
@@ -71,10 +71,10 @@ export function useTranscriptionProgress(
           status: progress.status,
         });
       } catch (error) {
-        handleSilently(error, 'progress-polling');
+        handleSilently(error, "progress-polling");
       }
     },
-    [updateProgress]
+    [updateProgress],
   );
 
   // Poll for transcription progress updates - optimized to use memoized filesToPoll

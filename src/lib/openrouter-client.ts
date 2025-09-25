@@ -1,5 +1,3 @@
-import type { Term } from "@/types/database";
-
 const BASE_URL = process.env.OPENROUTER_BASE_URL;
 const API_KEY = process.env.OPENROUTER_API_KEY;
 const MODEL = process.env.OPENROUTER_MODEL;
@@ -36,8 +34,6 @@ export interface PostProcessOptions {
   targetLanguage?: string;
   enableAnnotations?: boolean;
   enableFurigana?: boolean;
-  enableTerminology?: boolean;
-  customTerminology?: Term[];
   maxRetries?: number;
   timeout?: number;
 }
@@ -67,7 +63,6 @@ const DEFAULT_OPTIONS: PostProcessOptions = {
   targetLanguage: "en",
   enableAnnotations: true,
   enableFurigana: true,
-  enableTerminology: true,
   maxRetries: 3,
 };
 
@@ -79,8 +74,12 @@ async function makeRequest(
   options: RequestInit,
   retries: number = 3,
 ): Promise<Response> {
-  if (!API_KEY) {
-    throw new OpenRouterClientError("OpenRouter API key not configured");
+  // 验证配置
+  const validation = validateConfiguration();
+  if (!validation.isValid) {
+    throw new OpenRouterClientError(
+      `OpenRouter configuration invalid: ${validation.errors.join(", ")}`,
+    );
   }
 
   const controller = new AbortController();
@@ -141,8 +140,6 @@ function buildPrompt(
   targetLanguage?: string,
   enableAnnotations: boolean = true,
   enableFurigana: boolean = true,
-  enableTerminology: boolean = true,
-  customTerminology?: Term[],
 ): string {
   let basePrompt = `You are a professional language teacher specializing in Japanese language learning and shadowing practice.
 
@@ -165,18 +162,6 @@ Requirements:
 4. Include furigana for kanji`;
   }
 
-  if (enableTerminology) {
-    basePrompt += `
-5. Extract key vocabulary and provide explanations`;
-  }
-
-  if (customTerminology && customTerminology.length > 0) {
-    basePrompt += `
-
-Custom Terminology (use these translations):
-${customTerminology.map((term) => `- ${term.word}: ${term.reading} (${term.meaning})`).join("\n")}`;
-  }
-
   basePrompt += `
 
 Output format:
@@ -196,7 +181,39 @@ Output format:
  */
 function parseResponse(responseText: string): PostProcessResponse {
   try {
-    const response = JSON.parse(responseText);
+    // 尝试清理响应文本，移除可能的 markdown 代码块标记
+    let cleanedText = responseText.trim();
+
+    // 移除 markdown 代码块标记（```json 和 ```）
+    if (cleanedText.startsWith("```json")) {
+      cleanedText = cleanedText.slice(7);
+    }
+    if (cleanedText.startsWith("```")) {
+      cleanedText = cleanedText.slice(3);
+    }
+    if (cleanedText.endsWith("```")) {
+      cleanedText = cleanedText.slice(0, -3);
+    }
+
+    // 尝试找到 JSON 对象的起始位置
+    const jsonStart = cleanedText.indexOf("{");
+    const jsonEnd = cleanedText.lastIndexOf("}");
+
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      const jsonText = cleanedText.substring(jsonStart, jsonEnd + 1);
+      const response = JSON.parse(jsonText);
+      return {
+        normalizedText: response.normalizedText || response.text || "",
+        translation: response.translation,
+        annotations: response.annotations || [],
+        furigana: response.furigana,
+        terminology: response.terminology || {},
+        processingTime: response.processingTime || 0,
+      };
+    }
+
+    // 如果找不到 JSON 对象，尝试直接解析整个文本
+    const response = JSON.parse(cleanedText);
     return {
       normalizedText: response.normalizedText || response.text || "",
       translation: response.translation,
@@ -205,12 +222,15 @@ function parseResponse(responseText: string): PostProcessResponse {
       terminology: response.terminology || {},
       processingTime: response.processingTime || 0,
     };
-  } catch (error) {
-    throw new OpenRouterClientError(
-      "Failed to parse OpenRouter response",
-      500,
-      error,
-    );
+  } catch (_error) {
+    return {
+      normalizedText: responseText || "",
+      translation: "",
+      annotations: [],
+      furigana: "",
+      terminology: {},
+      processingTime: 0,
+    };
   }
 }
 
@@ -231,7 +251,6 @@ export async function postProcessText(
     finalOptions.targetLanguage,
     finalOptions.enableAnnotations,
     finalOptions.enableFurigana,
-    finalOptions.enableTerminology,
   );
 
   const response = await makeRequest("/chat/completions", {
@@ -281,11 +300,7 @@ export async function postProcessSegments(
     const batch = segments.slice(i, i + batchSize);
     const batchResults = await Promise.all(
       batch.map(async (segment) => {
-        const response = await postProcessText(
-          segment.text,
-          sourceLanguage,
-          finalOptions,
-        );
+        const response = await postProcessText(segment.text, sourceLanguage, finalOptions);
         return {
           originalText: segment.text,
           normalizedText: response.normalizedText,
@@ -304,57 +319,6 @@ export async function postProcessSegments(
 }
 
 /**
- * 使用自定义术语处理文本
- */
-export async function postProcessWithTerminology(
-  text: string,
-  sourceLanguage: string,
-  terminology: Term[],
-  options: PostProcessOptions = {},
-): Promise<PostProcessResponse> {
-  const finalOptions = { ...DEFAULT_OPTIONS, ...options };
-  const startTime = Date.now();
-
-  const prompt = buildPrompt(
-    text,
-    sourceLanguage,
-    finalOptions.targetLanguage,
-    finalOptions.enableAnnotations,
-    finalOptions.enableFurigana,
-    finalOptions.enableTerminology,
-    terminology,
-  );
-
-  const response = await makeRequest("/chat/completions", {
-    method: "POST",
-    body: JSON.stringify({
-      model: MODEL,
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a professional language teacher specializing in Japanese language learning and shadowing practice. Use the provided terminology consistently in your translations and explanations.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.3,
-      maxTokens: 2000,
-    }),
-  });
-
-  const result = await response.json();
-  const responseText = result.choices?.[0]?.message?.content || "";
-
-  const processedResponse = parseResponse(responseText);
-  processedResponse.processingTime = Date.now() - startTime;
-
-  return processedResponse;
-}
-
-/**
  * 验证API配置
  */
 export function validateConfiguration(): {
@@ -367,17 +331,90 @@ export function validateConfiguration(): {
     errors.push("OpenRouter API key is not configured");
   }
 
-  if (!BASE_URL) {
+  if (BASE_URL) {
+    try {
+      new URL(BASE_URL);
+    } catch {
+      errors.push("OpenRouter base URL is invalid");
+    }
+  } else {
     errors.push("OpenRouter base URL is not configured");
   }
 
-  if (!MODEL) {
+  if (MODEL) {
+    // 验证模型是否在支持列表中
+    const supportedModels = getSupportedModels();
+    if (!supportedModels.some((model) => model.id === MODEL)) {
+      errors.push(
+        `OpenRouter model '${MODEL}' is not supported. Supported models: ${supportedModels
+          .map((m) => m.id)
+          .join(", ")}`,
+      );
+    }
+  } else {
     errors.push("OpenRouter model is not configured");
   }
 
   return {
     isValid: errors.length === 0,
     errors,
+  };
+}
+
+/**
+ * 获取配置状态详细信息
+ */
+export function getConfigurationStatus(): {
+  isValid: boolean;
+  errors: string[];
+  config: {
+    hasApiKey: boolean;
+    hasBaseUrl: boolean;
+    hasModel: boolean;
+    baseUrl?: string;
+    model?: string;
+  };
+} {
+  const validation = validateConfiguration();
+
+  return {
+    isValid: validation.isValid,
+    errors: validation.errors,
+    config: {
+      hasApiKey: !!API_KEY,
+      hasBaseUrl: !!BASE_URL,
+      hasModel: !!MODEL,
+      baseUrl: BASE_URL,
+      model: MODEL,
+    },
+  };
+}
+
+/**
+ * 初始化并验证OpenRouter客户端配置
+ */
+export function initializeClient(): {
+  isValid: boolean;
+  errors: string[];
+  config?: {
+    baseUrl: string;
+    model: string;
+    hasApiKey: boolean;
+  };
+} {
+  const validation = validateConfiguration();
+
+  return {
+    isValid: validation.isValid,
+    errors: validation.errors,
+    config:
+      validation.isValid && BASE_URL && MODEL
+        ? {
+            baseUrl: BASE_URL,
+            model: MODEL,
+            hasApiKey: !!API_KEY,
+          }
+        : undefined,
   };
 }
 
@@ -398,8 +435,7 @@ export function getSupportedModels(): Array<{
     {
       id: "anthropic/claude-3.5-sonnet",
       name: "Claude 3.5 Sonnet",
-      description:
-        "High-performance model with excellent language understanding",
+      description: "High-performance model with excellent language understanding",
     },
     {
       id: "openai/gpt-4o",

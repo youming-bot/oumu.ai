@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 import {
   createError,
   handleError,
   internalError,
   notFoundError,
   validationError,
-} from '@/lib/error-handler';
-import type { AppError } from '@/types/errors';
+} from "@/lib/error-handler";
+import type { AppError } from "@/types/errors";
 
 // 成功响应函数
 export function apiSuccess(data: unknown, status: number = 200) {
@@ -19,11 +19,11 @@ export function apiSuccess(data: unknown, status: number = 200) {
     {
       status,
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        Pragma: 'no-cache',
-        Expires: '0',
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        pragma: "no-cache",
+        expires: "0",
       },
-    }
+    },
   );
 }
 
@@ -42,11 +42,11 @@ export function apiError(error: AppError) {
     {
       status: error.statusCode,
       headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        Pragma: 'no-cache',
-        Expires: '0',
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        pragma: "no-cache",
+        expires: "0",
       },
-    }
+    },
   );
 }
 
@@ -65,9 +65,9 @@ export function apiNoContent() {
   return new NextResponse(null, {
     status: 204,
     headers: {
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      Pragma: 'no-cache',
-      Expires: '0',
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      pragma: "no-cache",
+      expires: "0",
     },
   });
 }
@@ -93,31 +93,31 @@ export function apiInternalError(message: string, details?: Record<string, unkno
 }
 
 export function apiUnauthorized(
-  message: string = 'Unauthorized',
-  details?: Record<string, unknown>
+  message: string = "Unauthorized",
+  details?: Record<string, unknown>,
 ) {
-  const error = createError('apiAuthError', message, details, 401);
+  const error = createError("apiAuthError", message, details, 401);
   return apiError(error);
 }
 
-export function apiForbidden(message: string = 'Forbidden', details?: Record<string, unknown>) {
-  const error = createError('apiAuthError', message, details, 403);
+export function apiForbidden(message: string = "Forbidden", details?: Record<string, unknown>) {
+  const error = createError("apiAuthError", message, details, 403);
   return apiError(error);
 }
 
 export function apiTooManyRequests(
-  message: string = 'Too many requests',
-  details?: Record<string, unknown>
+  message: string = "Too many requests",
+  details?: Record<string, unknown>,
 ) {
-  const error = createError('apiRateLimit', message, details, 429);
+  const error = createError("apiRateLimit", message, details, 429);
   return apiError(error);
 }
 
 export function apiServiceUnavailable(
-  message: string = 'Service unavailable',
-  details?: Record<string, unknown>
+  message: string = "Service unavailable",
+  details?: Record<string, unknown>,
 ) {
-  const error = createError('serviceUnavailable', message, details, 503);
+  const error = createError("serviceUnavailable", message, details, 503);
   return apiError(error);
 }
 

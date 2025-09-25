@@ -1,32 +1,32 @@
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { useFiles } from '../../../src/hooks/useFiles';
-import { ErrorHandler } from '../../../src/lib/error-handler';
-import { FileUploadUtils } from '../../../src/lib/file-upload';
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { useFiles } from "@/hooks/useFiles";
+import { ErrorHandler } from "@/lib/error-handler";
+import { FileUploadUtils } from "@/lib/file-upload";
 
 // Mock dependencies
-jest.mock('../../../src/lib/file-upload');
-jest.mock('../../../src/lib/error-handler');
+jest.mock("@/lib/file-upload");
+jest.mock("@/lib/error-handler");
 
 const mockFileUploadUtils = FileUploadUtils;
 const mockErrorHandler = ErrorHandler;
 
-describe('useFiles hook', () => {
+describe("useFiles hook", () => {
   const mockFiles = [
     {
       id: 1,
-      name: 'test1.mp3',
+      name: "test1.mp3",
       size: 1024000,
-      type: 'audio/mp3',
-      blob: new Blob(['audio1']),
+      type: "audio/mp3",
+      blob: new Blob(["audio1"]),
       createdAt: new Date(),
       updatedAt: new Date(),
     },
     {
       id: 2,
-      name: 'test2.wav',
+      name: "test2.wav",
       size: 2048000,
-      type: 'audio/wav',
-      blob: new Blob(['audio2']),
+      type: "audio/wav",
+      blob: new Blob(["audio2"]),
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -37,23 +37,22 @@ describe('useFiles hook', () => {
     mockFileUploadUtils.getAllFiles.mockResolvedValue(mockFiles);
   });
 
-  it('should initialize with empty files and load files on mount', async () => {
+  it("should initialize with empty files and load files on mount", async () => {
     const { result } = renderHook(() => useFiles());
 
-    // Initial state - isLoading should be true because loading starts immediately
+    // Initial state - files should be empty
     expect(result.current.files).toEqual([]);
-    expect(result.current.isLoading).toBe(true);
 
-    // Wait for files to load
+    // Wait for the async operations to complete
     await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
       expect(result.current.files).toEqual(mockFiles);
     });
 
-    expect(result.current.isLoading).toBe(false);
     expect(mockFileUploadUtils.getAllFiles).toHaveBeenCalledTimes(1);
   });
 
-  it('should set loading state during file loading', async () => {
+  it("should set loading state during file loading", async () => {
     let resolvePromise: (value: any) => void;
     const promise = new Promise((resolve) => {
       resolvePromise = resolve;
@@ -63,12 +62,10 @@ describe('useFiles hook', () => {
     const { result } = renderHook(() => useFiles());
 
     // Should be loading initially
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(true);
-    });
+    expect(result.current.isLoading).toBe(true);
 
-    // Resolve the promise
-    act(() => {
+    // Resolve the promise and wait for state to update
+    await act(async () => {
       resolvePromise(mockFiles);
     });
 
@@ -79,21 +76,22 @@ describe('useFiles hook', () => {
     });
   });
 
-  it('should handle errors when loading files', async () => {
-    const error = new Error('Failed to load files');
+  it("should handle errors when loading files", async () => {
+    const error = new Error("Failed to load files");
     mockFileUploadUtils.getAllFiles.mockRejectedValue(error);
 
     const { result } = renderHook(() => useFiles());
 
+    // Wait for the async operations to complete
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
+      expect(result.current.files).toEqual([]);
     });
 
-    expect(mockErrorHandler.handleAndShowError).toHaveBeenCalledWith(error, 'loadFiles');
-    expect(result.current.files).toEqual([]);
+    expect(mockErrorHandler.handleAndShowError).toHaveBeenCalledWith(error, "loadFiles");
   });
 
-  it('should manually load files when loadFiles is called', async () => {
+  it("should manually load files when loadFiles is called", async () => {
     const { result } = renderHook(() => useFiles());
 
     // Wait for initial load
@@ -110,11 +108,15 @@ describe('useFiles hook', () => {
       await result.current.loadFiles();
     });
 
+    // Wait for state to update
+    await waitFor(() => {
+      expect(result.current.files).toEqual([]);
+    });
+
     expect(mockFileUploadUtils.getAllFiles).toHaveBeenCalledTimes(1);
-    expect(result.current.files).toEqual([]);
   });
 
-  it('should refresh files when refreshFiles is called', async () => {
+  it("should refresh files when refreshFiles is called", async () => {
     const { result } = renderHook(() => useFiles());
 
     // Wait for initial load
@@ -132,22 +134,27 @@ describe('useFiles hook', () => {
       await result.current.refreshFiles();
     });
 
+    // Wait for state to update
+    await waitFor(() => {
+      expect(result.current.files).toEqual(newFiles);
+    });
+
     expect(mockFileUploadUtils.getAllFiles).toHaveBeenCalledTimes(1);
-    expect(result.current.files).toEqual(newFiles);
   });
 
-  it('should handle empty file list', async () => {
+  it("should handle empty file list", async () => {
     mockFileUploadUtils.getAllFiles.mockResolvedValue([]);
 
     const { result } = renderHook(() => useFiles());
 
+    // Wait for the async operations to complete
     await waitFor(() => {
       expect(result.current.files).toEqual([]);
       expect(result.current.isLoading).toBe(false);
     });
   });
 
-  it('should maintain loading state correctly during multiple operations', async () => {
+  it("should maintain loading state correctly during multiple operations", async () => {
     const { result } = renderHook(() => useFiles());
 
     // Wait for initial load
@@ -163,35 +170,34 @@ describe('useFiles hook', () => {
     mockFileUploadUtils.getAllFiles.mockReturnValue(delayedPromise);
 
     // Start loading
-    act(() => {
+    await act(async () => {
       result.current.loadFiles();
     });
 
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(true);
-    });
+    expect(result.current.isLoading).toBe(true);
 
     // Resolve
-    act(() => {
+    await act(async () => {
       resolvePromise([]);
     });
 
+    // Wait for state to update
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
   });
 
-  it('should provide all expected return values', () => {
+  it("should provide all expected return values", () => {
     const { result } = renderHook(() => useFiles());
 
-    expect(result.current).toHaveProperty('files');
-    expect(result.current).toHaveProperty('isLoading');
-    expect(result.current).toHaveProperty('loadFiles');
-    expect(result.current).toHaveProperty('refreshFiles');
+    expect(result.current).toHaveProperty("files");
+    expect(result.current).toHaveProperty("isLoading");
+    expect(result.current).toHaveProperty("loadFiles");
+    expect(result.current).toHaveProperty("refreshFiles");
 
-    expect(typeof result.current.loadFiles).toBe('function');
-    expect(typeof result.current.refreshFiles).toBe('function');
-    expect(typeof result.current.isLoading).toBe('boolean');
+    expect(typeof result.current.loadFiles).toBe("function");
+    expect(typeof result.current.refreshFiles).toBe("function");
+    expect(typeof result.current.isLoading).toBe("boolean");
     expect(Array.isArray(result.current.files)).toBe(true);
   });
 });

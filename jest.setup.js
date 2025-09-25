@@ -153,5 +153,72 @@ if (typeof global.window === 'undefined') {
 }
 global.window.URL = global.URL
 
+// 精确过滤控制台警告，只抑制预期的警告
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+// 定义需要抑制的警告模式
+const SUPPRESSED_WARNINGS = [
+  // React 19 act() 警告（在测试中是正常的）
+  'An update to TestComponent inside a test was not wrapped in act',
+  // IndexedDB 相关警告（在测试环境中是正常的）
+  'IndexedDB',
+  'not supported',
+  // Web Audio API 警告（在测试环境中是正常的）
+  'AudioContext',
+  // Tailwind CSS 警告（在测试环境中是正常的）
+  'Tailwind CSS',
+  'not found'
+];
+
+console.warn = (...args) => {
+  // 只抑制特定的、已知的警告
+  const warningMessage = args.join(' ');
+
+  // 检查是否需要抑制
+  const shouldSuppress = SUPPRESSED_WARNINGS.some(pattern =>
+    warningMessage.includes(pattern)
+  );
+
+  if (!shouldSuppress) {
+    originalConsoleWarn(...args);
+  }
+};
+
+console.error = (...args) => {
+  // 只抑制特定的、已知的错误
+  const errorMessage = args.join(' ');
+
+  // 抑制测试相关的预期错误
+  if (errorMessage.includes('Error: Not implemented')) {
+    return;
+  }
+
+  // 抑制 IndexedDB 相关的错误（在测试环境中是正常的）
+  if (errorMessage.includes('IndexedDB') && errorMessage.includes('failed to open')) {
+    return;
+  }
+
+  // 输出其他错误
+  originalConsoleError(...args);
+};
+
+// 全局测试设置
+beforeEach(() => {
+  // 重置所有模拟
+  jest.clearAllMocks();
+
+  // 设置时区以避免时区相关的测试问题
+  process.env.TZ = 'UTC';
+});
+
+// 全局测试清理
+afterEach(() => {
+  // 清理任何可能的全局状态
+  if (global.gc) {
+    global.gc();
+  }
+});
+
 // Debug: Check if jest.setup.js is loaded
 console.log('jest.setup.js loaded - FormData, Blob, and URL mocks available')

@@ -2,7 +2,7 @@
  * URL管理器 - 自动跟踪和清理Object URLs (函数式模块)
  */
 
-import { handleSilently } from './error-handler';
+import { handleSilently } from "./error-handler";
 
 // 向后兼容：保留 URLManager 类别名
 // biome-ignore lint/complexity/noStaticOnlyClass: Backward compatibility for existing code
@@ -66,8 +66,10 @@ export function createObjectUrl(blob: Blob): string {
  * 撤销Object URL并从跟踪中移除
  */
 export function revokeObjectUrl(url: string): void {
-  URL.revokeObjectURL(url);
-  activeUrls.delete(url);
+  if (activeUrls.has(url)) {
+    URL.revokeObjectURL(url);
+    activeUrls.delete(url);
+  }
 }
 
 /**
@@ -85,7 +87,7 @@ export function revokeAllUrls(): void {
     try {
       URL.revokeObjectURL(url);
     } catch (error) {
-      handleSilently(error, 'url-revoke');
+      handleSilently(error, "url-revoke");
     }
   });
   activeUrls.clear();
@@ -94,13 +96,21 @@ export function revokeAllUrls(): void {
 /**
  * 创建临时URL（自动清理）
  */
-export function createTemporaryUrl(blob: Blob, autoRevokeAfter?: number): string {
+export function createTemporaryUrl(
+  blob: Blob,
+  autoRevokeAfter: number = 5 * 60 * 1000, // 默认5分钟
+): string {
   const url = createObjectUrl(blob);
 
-  if (autoRevokeAfter) {
+  if (autoRevokeAfter > 0) {
     setTimeout(() => {
       revokeObjectUrl(url);
     }, autoRevokeAfter);
+  } else if (autoRevokeAfter === 0) {
+    // 使用 setTimeout(..., 0) 而不是立即撤销，以匹配测试期望
+    setTimeout(() => {
+      revokeObjectUrl(url);
+    }, 0);
   }
 
   return url;

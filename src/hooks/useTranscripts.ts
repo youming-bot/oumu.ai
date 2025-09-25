@@ -1,12 +1,13 @@
-import { useCallback, useState } from 'react';
-import { DbUtils } from '@/lib/db';
-import { handleAndShowError } from '@/lib/error-handler';
-import type { Segment, TranscriptRow } from '@/types/database';
+import { useCallback, useEffect, useState } from "react";
+import { DbUtils } from "@/lib/db";
+import { handleAndShowError } from "@/lib/error-handler";
+import type { Segment, TranscriptRow } from "@/types/database";
 
 export interface UseTranscriptsReturn {
   transcripts: TranscriptRow[];
   segments: Segment[];
   isLoading: boolean;
+  loadAllTranscripts: () => Promise<void>;
   loadTranscriptsByFileId: (fileId: number) => Promise<void>;
   loadSegmentsByTranscriptId: (transcriptId: number) => Promise<void>;
   clearSegments: () => void;
@@ -21,13 +22,25 @@ export function useTranscripts(): UseTranscriptsReturn {
   const [segments, setSegments] = useState<Segment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  const loadAllTranscripts = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const allTranscripts = await DbUtils.getAllTranscripts();
+      setTranscripts(allTranscripts);
+    } catch (error) {
+      handleAndShowError(error, "loadAllTranscripts");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   const loadTranscriptsByFileId = useCallback(async (fileId: number) => {
     try {
       setIsLoading(true);
       const loadedTranscripts = await DbUtils.getTranscriptsByFileId(fileId);
       setTranscripts(loadedTranscripts);
     } catch (error) {
-      handleAndShowError(error, 'loadTranscriptsByFileId');
+      handleAndShowError(error, "loadTranscriptsByFileId");
     } finally {
       setIsLoading(false);
     }
@@ -39,7 +52,7 @@ export function useTranscripts(): UseTranscriptsReturn {
       const loadedSegments = await DbUtils.getSegmentsByTranscriptId(transcriptId);
       setSegments(loadedSegments);
     } catch (error) {
-      handleAndShowError(error, 'loadSegments');
+      handleAndShowError(error, "loadSegments");
       setSegments([]);
     } finally {
       setIsLoading(false);
@@ -54,13 +67,27 @@ export function useTranscripts(): UseTranscriptsReturn {
     setSegments([]);
   }, []);
 
-  // Remove the loadTranscripts method that was calling non-existent getAllTranscripts
-  // and remove the useEffect that was calling loadTranscripts on mount
+  // 自动加载所有转录记录，防止页面刷新时状态重置
+  useEffect(() => {
+    const initializeTranscripts = async () => {
+      try {
+        setIsLoading(true);
+        await loadAllTranscripts();
+      } catch (error) {
+        handleAndShowError(error, "initializeTranscripts");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeTranscripts();
+  }, [loadAllTranscripts]);
 
   return {
     transcripts,
     segments,
     isLoading,
+    loadAllTranscripts,
     loadTranscriptsByFileId,
     loadSegmentsByTranscriptId,
     clearSegments,

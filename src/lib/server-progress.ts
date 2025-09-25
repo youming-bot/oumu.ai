@@ -1,7 +1,7 @@
 // 服务器端进度存储 - 使用内存存储（生产环境建议使用Redis等）
 type ServerProgress = {
   fileId: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: "pending" | "processing" | "completed" | "failed";
   progress: number;
   message: string;
   error?: string;
@@ -13,9 +13,9 @@ const progressStore = new Map<number, ServerProgress>();
 export function setServerProgress(fileId: number, progress: Partial<ServerProgress>) {
   const existing = progressStore.get(fileId) || {
     fileId,
-    status: 'pending' as const,
+    status: "pending" as const,
     progress: 0,
-    message: 'Pending',
+    message: "Pending",
     updatedAt: Date.now(),
   };
 
@@ -34,7 +34,7 @@ export function setServerProgress(fileId: number, progress: Partial<ServerProgre
         progressStore.delete(fileId);
       }
     },
-    30 * 60 * 1000
+    30 * 60 * 1000,
   );
 }
 

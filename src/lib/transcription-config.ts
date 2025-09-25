@@ -15,15 +15,15 @@ export function getTranscriptionConfig(): TranscriptionConfig {
   return {
     timeoutMs: parseInt(
       process.env.TRANSCRIPTION_TIMEOUT_MS || defaultConfig.timeoutMs.toString(),
-      10
+      10,
     ),
     retryCount: parseInt(
       process.env.TRANSCRIPTION_RETRY_COUNT || defaultConfig.retryCount.toString(),
-      10
+      10,
     ),
     maxConcurrency: parseInt(
       process.env.TRANSCRIPTION_MAX_CONCURRENCY || defaultConfig.maxConcurrency.toString(),
-      10
+      10,
     ),
   };
 }
@@ -38,7 +38,7 @@ export function getGroqSettings(): {
 } {
   return {
     apiKey: process.env.GROQ_API_KEY,
-    model: 'whisper-large-v3-turbo',
+    model: "whisper-large-v3-turbo",
     supportsLanguage: true,
     supportsPrompt: true,
     maxFileSize: 100 * 1024 * 1024, // 100MB

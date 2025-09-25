@@ -1,5 +1,5 @@
-import { FileUploadUtils } from './file-upload';
-import { createObjectUrl, revokeObjectUrl } from './url-manager';
+import { FileUploadUtils } from "./file-upload";
+import { createObjectUrl, revokeObjectUrl } from "./url-manager";
 
 export interface AudioChunk {
   blob: Blob;
@@ -24,15 +24,15 @@ export async function getAudioDuration(blob: Blob): Promise<number> {
     const audio = new Audio();
     const url = createObjectUrl(blob);
 
-    audio.addEventListener('loadedmetadata', () => {
+    audio.addEventListener("loadedmetadata", () => {
       const duration = audio.duration;
       revokeObjectUrl(url);
       resolve(duration);
     });
 
-    audio.addEventListener('error', (_error) => {
+    audio.addEventListener("error", (_error) => {
       revokeObjectUrl(url);
-      reject(new Error('Failed to load audio metadata'));
+      reject(new Error("Failed to load audio metadata"));
     });
 
     audio.src = url;
@@ -47,12 +47,12 @@ export async function sliceAudio(
   startTime: number,
   endTime: number,
   chunkSeconds: number = 45,
-  overlap: number = 0.2
+  overlap: number = 0.2,
 ): Promise<AudioChunk[]> {
   // 内存安全检查
   if (blob.size > 500 * 1024 * 1024) {
     // 500MB limit
-    throw new Error('Audio file too large for processing. Maximum size is 500MB.');
+    throw new Error("Audio file too large for processing. Maximum size is 500MB.");
   }
 
   const audioContext = new AudioContext();
@@ -79,7 +79,7 @@ export async function sliceAudio(
         audioBuffer,
         currentStart,
         chunkEnd,
-        audioContext
+        audioContext,
       );
 
       chunks.push({
@@ -103,7 +103,7 @@ export async function sliceAudio(
     return chunks;
   } catch (error) {
     throw new Error(
-      `Audio processing error: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Audio processing error: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   } finally {
     await audioContext.close();
@@ -117,7 +117,7 @@ async function extractAudioSegment(
   audioBuffer: AudioBuffer,
   startTime: number,
   endTime: number,
-  _audioContext: AudioContext
+  _audioContext: AudioContext,
 ): Promise<Blob> {
   const sampleRate = audioBuffer.sampleRate;
   const startSample = Math.floor(startTime * sampleRate);
@@ -181,10 +181,10 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
     }
   };
 
-  writeString(0, 'RIFF');
+  writeString(0, "RIFF");
   view.setUint32(4, 36 + samples.length * 2, true);
-  writeString(8, 'WAVE');
-  writeString(12, 'fmt ');
+  writeString(8, "WAVE");
+  writeString(12, "fmt ");
   view.setUint32(16, 16, true);
   view.setUint16(20, 1, true);
   view.setUint16(22, 1, true);
@@ -192,11 +192,11 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
   view.setUint32(28, sampleRate * 2, true);
   view.setUint16(32, 2, true);
   view.setUint16(34, 16, true);
-  writeString(36, 'data');
+  writeString(36, "data");
   view.setUint32(40, samples.length * 2, true);
   floatTo16BitPcm(view, 44, samples);
 
-  return new Blob([view], { type: 'audio/wav' });
+  return new Blob([view], { type: "audio/wav" });
 }
 
 /**
@@ -205,12 +205,12 @@ function encodeWav(samples: Float32Array, sampleRate: number): Blob {
 export async function processAudioFile(
   fileBlobOrId: Blob | number,
   chunkSeconds: number = 45,
-  overlap: number = 0.2
+  overlap: number = 0.2,
 ): Promise<AudioChunk[]> {
   let fileBlob: Blob;
 
   // 如果传入的是数字，说明是文件ID，需要获取文件blob
-  if (typeof fileBlobOrId === 'number') {
+  if (typeof fileBlobOrId === "number") {
     fileBlob = await FileUploadUtils.getFileBlob(fileBlobOrId);
   } else {
     fileBlob = fileBlobOrId;
@@ -219,17 +219,17 @@ export async function processAudioFile(
 
   // 文件大小和时长检查
   if (fileBlob.size > 500 * 1024 * 1024) {
-    throw new Error('File size exceeds 500MB limit. Please use a smaller audio file.');
+    throw new Error("File size exceeds 500MB limit. Please use a smaller audio file.");
   }
 
   if (duration > 3600) {
     // 1小时限制
-    throw new Error('Audio duration exceeds 1 hour limit. Please use a shorter audio file.');
+    throw new Error("Audio duration exceeds 1 hour limit. Please use a shorter audio file.");
   }
   const chunks = await sliceAudio(fileBlob, 0, duration, chunkSeconds, overlap);
 
   // 如果传入的是文件ID，更新文件元数据
-  if (typeof fileBlobOrId === 'number') {
+  if (typeof fileBlobOrId === "number") {
     await FileUploadUtils.updateFileMetadata(fileBlobOrId, { duration });
   }
   return chunks;
@@ -258,10 +258,14 @@ export async function getAudioMetadata(blob: Blob): Promise<AudioMetadata> {
  */
 export async function mergeAudioChunks(chunks: AudioChunk[]): Promise<Blob> {
   if (chunks.length === 0) {
-    throw new Error('No chunks to merge');
+    throw new Error("No chunks to merge");
   }
+
+  // 读取第一个音频块以确定实际采样率
   const audioContext = new AudioContext();
-  const sampleRate = 44100; // Standard sample rate
+  const firstChunkArrayBuffer = await chunks[0].blob.arrayBuffer();
+  const firstAudioBuffer = await audioContext.decodeAudioData(firstChunkArrayBuffer);
+  const sampleRate = firstAudioBuffer.sampleRate; // 使用实际采样率而不是硬编码
 
   const totalDuration = chunks.reduce((sum, chunk) => sum + chunk.duration, 0);
   const totalSamples = Math.floor(totalDuration * sampleRate);
@@ -274,7 +278,18 @@ export async function mergeAudioChunks(chunks: AudioChunk[]): Promise<Blob> {
   for (const chunk of chunks) {
     const chunkArrayBuffer = await chunk.blob.arrayBuffer();
     const chunkAudioBuffer = await audioContext.decodeAudioData(chunkArrayBuffer);
-    const chunkData = chunkAudioBuffer.getChannelData(0);
+
+    // 处理采样率不匹配的情况
+    let chunkData: Float32Array = chunkAudioBuffer.getChannelData(0);
+    if (chunkAudioBuffer.sampleRate !== sampleRate) {
+      // 如果采样率不同，需要重新采样
+      chunkData = await resampleAudioData(
+        chunkData,
+        chunkAudioBuffer.sampleRate,
+        sampleRate,
+        audioContext,
+      );
+    }
 
     const chunkSamples = Math.min(chunkData.length, totalSamples - currentSample);
 
@@ -291,4 +306,31 @@ export async function mergeAudioChunks(chunks: AudioChunk[]): Promise<Blob> {
 
   const interleaved = interleave(mergedBuffer);
   return encodeWav(interleaved, sampleRate);
+}
+
+/**
+ * 重新采样音频数据以匹配目标采样率
+ * 使用简单的线性插值进行重新采样
+ */
+async function resampleAudioData(
+  inputData: Float32Array,
+  inputSampleRate: number,
+  outputSampleRate: number,
+  _audioContext: AudioContext,
+): Promise<Float32Array> {
+  const ratio = inputSampleRate / outputSampleRate;
+  const outputLength = Math.floor(inputData.length / ratio);
+  const outputData = new Float32Array(outputLength);
+
+  for (let i = 0; i < outputLength; i++) {
+    const inputIndex = i * ratio;
+    const lowerIndex = Math.floor(inputIndex);
+    const upperIndex = Math.min(lowerIndex + 1, inputData.length - 1);
+    const fraction = inputIndex - lowerIndex;
+
+    // 线性插值
+    outputData[i] = inputData[lowerIndex] * (1 - fraction) + inputData[upperIndex] * fraction;
+  }
+
+  return outputData;
 }

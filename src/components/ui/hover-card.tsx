@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useState } from "react";
 
 interface HoverCardProps {
   children: ReactNode;
@@ -13,8 +13,8 @@ interface HoverCardProps {
 export default function HoverCard({
   children,
   hoverContent,
-  className = '',
-  hoverClassName = '',
+  className = "",
+  hoverClassName = "",
   delay = 100,
 }: HoverCardProps) {
   const [isHovered, setIsHovered] = useState(false);
@@ -48,10 +48,10 @@ export default function HoverCard({
           className={`absolute z-50 origin-top scale-95 transform rounded-lg border bg-card p-3 opacity-0 shadow-lg transition-all duration-200 group-hover:scale-100 group-hover:opacity-100 ${hoverClassName}
           `}
           style={{
-            top: '100%',
-            left: '50%',
-            transform: 'translateX(-50%) translateY(8px)',
-            minWidth: '200px',
+            top: "100%",
+            left: "50%",
+            transform: "translateX(-50%) translateY(8px)",
+            minWidth: "200px",
           }}
         >
           {/* Arrow */}
@@ -68,8 +68,8 @@ export default function HoverCard({
 // Simple hover effect component
 export function HoverEffect({
   children,
-  className = '',
-  hoverClassName = 'scale-105',
+  className = "",
+  hoverClassName = "scale-105",
 }: {
   children: ReactNode;
   className?: string;
@@ -79,7 +79,7 @@ export function HoverEffect({
 
   return (
     <fieldset
-      className={`transition-all duration-200 ease-out ${isHovered ? hoverClassName : ''}
+      className={`transition-all duration-200 ease-out ${isHovered ? hoverClassName : ""}
         ${className}
       `}
       onMouseEnter={() => setIsHovered(true)}
@@ -93,9 +93,9 @@ export function HoverEffect({
 // Gradient hover effect
 export function GradientHover({
   children,
-  className = '',
-  gradientFrom = 'from-blue-500/10',
-  gradientTo = 'to-purple-500/10',
+  className = "",
+  gradientFrom = "from-blue-500/10",
+  gradientTo = "to-purple-500/10",
 }: {
   children: ReactNode;
   className?: string;
@@ -115,7 +115,7 @@ export function GradientHover({
 
       {/* Gradient overlay */}
       <div
-        className={`absolute inset-0 bg-gradient-to-r ${gradientFrom} ${gradientTo}transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}
+        className={`absolute inset-0 bg-gradient-to-r ${gradientFrom} ${gradientTo}transition-opacity duration-300 ${isHovered ? "opacity-100" : "opacity-0"}
         `}
       />
     </fieldset>

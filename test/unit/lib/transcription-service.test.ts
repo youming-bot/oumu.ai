@@ -1,5 +1,5 @@
-import { DbUtils } from '@/lib/db';
-import { TranscriptionService } from '@/lib/transcription-service';
+import { DbUtils } from "@/lib/db";
+import { TranscriptionService } from "@/lib/transcription-service";
 
 // Helper function for test failures
 function fail(message: string) {
@@ -17,15 +17,15 @@ global.ArrayBuffer = jest.fn().mockImplementation(() => ({}));
 global.ArrayBuffer.isView = jest.fn().mockImplementation((arg) => {
   return (
     arg?.constructor &&
-    (arg.constructor.name === 'Uint8Array' ||
-      arg.constructor.name === 'Int8Array' ||
-      arg.constructor.name === 'Uint16Array' ||
-      arg.constructor.name === 'Int16Array' ||
-      arg.constructor.name === 'Uint32Array' ||
-      arg.constructor.name === 'Int32Array' ||
-      arg.constructor.name === 'Float32Array' ||
-      arg.constructor.name === 'Float64Array' ||
-      arg.constructor.name === 'DataView')
+    (arg.constructor.name === "Uint8Array" ||
+      arg.constructor.name === "Int8Array" ||
+      arg.constructor.name === "Uint16Array" ||
+      arg.constructor.name === "Int16Array" ||
+      arg.constructor.name === "Uint32Array" ||
+      arg.constructor.name === "Int32Array" ||
+      arg.constructor.name === "Float32Array" ||
+      arg.constructor.name === "Float64Array" ||
+      arg.constructor.name === "DataView")
   );
 });
 
@@ -41,7 +41,7 @@ global.Uint8Array = class MockUint8Array {
 };
 
 // Mock DbUtils
-jest.mock('@/lib/db', () => ({
+jest.mock("@/lib/db", () => ({
   DbUtils: {
     getFile: jest.fn(),
     getTranscriptsByFileId: jest.fn(),
@@ -56,11 +56,10 @@ jest.mock('@/lib/db', () => ({
 }));
 
 // Mock AudioProcessor
-jest.mock('@/lib/audio-processor', () => ({
-  AudioProcessor: {
-    processAudioFile: jest.fn(),
-    getAudioDuration: jest.fn(),
-  },
+jest.mock("@/lib/audio-processor", () => ({
+  processAudioFile: jest.fn(),
+  getAudioDuration: jest.fn(),
+  mergeAudioChunks: jest.fn(),
 }));
 
 // Mock Blob and ArrayBuffer
@@ -74,18 +73,21 @@ global.Blob = class Blob {
   }
 };
 
-describe('Transcription Service', () => {
-  beforeEach(() => {
+describe("Transcription Service", () => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    // 确保数据库初始化
+    const { db } = await import("@/lib/db");
+    await db.open();
   });
 
-  describe('transcribeAudio', () => {
-    test('should start transcription for valid file', async () => {
+  describe("transcribeAudio", () => {
+    test("should start transcription for valid file", async () => {
       // Arrange
       const mockFile = {
         id: 123,
-        name: 'test.mp3',
-        blob: new Blob(['audio content']),
+        name: "test.mp3",
+        blob: new Blob(["audio content"]),
       };
       const mockTranscripts = [];
       const mockTranscriptId = 456;
@@ -95,17 +97,22 @@ describe('Transcription Service', () => {
       DbUtils.addTranscript.mockResolvedValue(mockTranscriptId);
 
       // Mock AudioProcessor responses
-      const { AudioProcessor } = require('@/lib/audio-processor');
-      AudioProcessor.processAudioFile.mockResolvedValue([
+      const {
+        processAudioFile,
+        getAudioDuration,
+        mergeAudioChunks,
+      } = require("@/lib/audio-processor");
+      processAudioFile.mockResolvedValue([
         {
           index: 0,
-          blob: new Blob(['audio content']),
+          blob: new Blob(["audio content"]),
           startTime: 0,
           endTime: 45,
           duration: 45,
         },
       ]);
-      AudioProcessor.getAudioDuration.mockResolvedValue(60);
+      getAudioDuration.mockResolvedValue(60);
+      mergeAudioChunks.mockResolvedValue(new Blob(["merged audio content"]));
 
       // Mock successful API response
       global.fetch.mockResolvedValueOnce({
@@ -113,7 +120,7 @@ describe('Transcription Service', () => {
         json: jest.fn().mockResolvedValue({
           success: true,
           data: {
-            text: 'transcribed text',
+            text: "transcribed text",
             duration: 60,
             segments: [],
             segmentCount: 0,
@@ -124,12 +131,12 @@ describe('Transcription Service', () => {
 
       // Act
       const result = await TranscriptionService.transcribeAudio(123, {
-        language: 'ja',
+        language: "ja",
       });
 
       // Assert
       expect(result).toEqual({
-        text: 'transcribed text',
+        text: "transcribed text",
         duration: 60,
         segments: [],
         segmentCount: 0,
@@ -138,32 +145,32 @@ describe('Transcription Service', () => {
       expect(DbUtils.getFile).toHaveBeenCalledWith(123);
 
       // Check that fetch was called with correct parameters
-      expect(global.fetch).toHaveBeenCalledWith('/api/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      expect(global.fetch).toHaveBeenCalledWith("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: expect.stringContaining('"language":"ja"'),
       });
-      expect(global.fetch).toHaveBeenCalledWith('/api/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      expect(global.fetch).toHaveBeenCalledWith("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: expect.stringContaining('"chunkSeconds":45'),
       });
-      expect(global.fetch).toHaveBeenCalledWith('/api/transcribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      expect(global.fetch).toHaveBeenCalledWith("/api/transcribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: expect.stringContaining('"overlap":0.2'),
       });
     });
 
-    test('should return existing completed transcript', async () => {
+    test("should return existing completed transcript", async () => {
       // Arrange
       const mockFile = {
         id: 123,
-        name: 'test.mp3',
-        blob: new Blob(['audio content']),
+        name: "test.mp3",
+        blob: new Blob(["audio content"]),
       };
       const mockTranscriptResult = {
-        text: 'existing transcript',
+        text: "existing transcript",
         duration: 60,
         segments: [],
         segmentCount: 0,
@@ -186,25 +193,25 @@ describe('Transcription Service', () => {
       expect(global.fetch).toHaveBeenCalled();
     });
 
-    test('should throw error for non-existent file', async () => {
+    test("should throw error for non-existent file", async () => {
       // Arrange
       DbUtils.getFile.mockResolvedValue(undefined);
 
       // Act & Assert
       try {
         await TranscriptionService.transcribeAudio(999);
-        fail('Expected error to be thrown');
+        fail("Expected error to be thrown");
       } catch (error) {
-        expect(error.message).toContain('文件未找到');
+        expect(error.message).toContain("文件未找到");
       }
     });
 
-    test('should handle API errors during transcription', async () => {
+    test("should handle API errors during transcription", async () => {
       // Arrange
       const mockFile = {
         id: 123,
-        name: 'test.mp3',
-        blob: new Blob(['audio content']),
+        name: "test.mp3",
+        blob: new Blob(["audio content"]),
       };
 
       DbUtils.getFile.mockResolvedValue(mockFile);
@@ -212,50 +219,50 @@ describe('Transcription Service', () => {
       // Mock API error response
       global.fetch.mockResolvedValueOnce({
         ok: false,
-        json: jest.fn().mockResolvedValue({ error: 'API error' }),
+        json: jest.fn().mockResolvedValue({ error: "API error" }),
       });
 
       // Act & Assert
       try {
         await TranscriptionService.transcribeAudio(123);
-        fail('Expected error to be thrown');
+        fail("Expected error to be thrown");
       } catch (error) {
-        expect(error.message).toContain('转录失败');
+        expect(error.message).toContain("转录失败");
       }
     });
 
-    test('should handle network errors during transcription', async () => {
+    test("should handle network errors during transcription", async () => {
       // Arrange
       const mockFile = {
         id: 123,
-        name: 'test.mp3',
-        blob: new Blob(['audio content']),
+        name: "test.mp3",
+        blob: new Blob(["audio content"]),
       };
 
       DbUtils.getFile.mockResolvedValue(mockFile);
 
       // Mock network error
-      global.fetch.mockRejectedValueOnce(new Error('Network error'));
+      global.fetch.mockRejectedValueOnce(new Error("Network error"));
 
       // Act & Assert
       try {
         await TranscriptionService.transcribeAudio(123);
-        fail('Expected error to be thrown');
+        fail("Expected error to be thrown");
       } catch (error) {
-        expect(error.message).toContain('Network error');
+        expect(error.message).toContain("Network error");
       }
     });
   });
 
-  describe('postProcessSegments', () => {
-    test('should post-process completed transcript', async () => {
+  describe("postProcessSegments", () => {
+    test("should post-process completed transcript", async () => {
       // Arrange
-      const mockTranscript = { id: 456, status: 'completed', fileId: 123 };
+      const mockTranscript = { id: 456, status: "completed", fileId: 123 };
 
       DbUtils.getTranscript.mockResolvedValue(mockTranscript);
       DbUtils.getSegmentsByTranscriptId.mockResolvedValue([
-        { start: 0, end: 5, text: 'Hello world' },
-        { start: 5, end: 10, text: 'How are you?' },
+        { start: 0, end: 5, text: "Hello world" },
+        { start: 5, end: 10, text: "How are you?" },
       ]);
 
       // Mock successful API response
@@ -269,7 +276,7 @@ describe('Transcription Service', () => {
 
       // Act
       const result = await TranscriptionService.postProcessSegmentsByTranscriptId(456, {
-        targetLanguage: 'en',
+        targetLanguage: "en",
         enableAnnotations: true,
         enableFurigana: true,
         enableTerminology: true,
@@ -278,87 +285,87 @@ describe('Transcription Service', () => {
       // Assert
       expect(result).toEqual({ processedSegments: 2, segments: [] });
       expect(DbUtils.getTranscript).toHaveBeenCalledWith(456);
-      expect(global.fetch).toHaveBeenCalledWith('/api/postprocess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      expect(global.fetch).toHaveBeenCalledWith("/api/postprocess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: expect.stringContaining('"targetLanguage":"en"'),
       });
-      expect(global.fetch).toHaveBeenCalledWith('/api/postprocess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      expect(global.fetch).toHaveBeenCalledWith("/api/postprocess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: expect.stringContaining('"enableAnnotations":true'),
       });
-      expect(global.fetch).toHaveBeenCalledWith('/api/postprocess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      expect(global.fetch).toHaveBeenCalledWith("/api/postprocess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: expect.stringContaining('"enableFurigana":true'),
       });
-      expect(global.fetch).toHaveBeenCalledWith('/api/postprocess', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      expect(global.fetch).toHaveBeenCalledWith("/api/postprocess", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: expect.stringContaining('"enableTerminology":true'),
       });
     });
 
-    test('should throw error for non-existent transcript', async () => {
+    test("should throw error for non-existent transcript", async () => {
       // Arrange
       DbUtils.getTranscript.mockResolvedValue(undefined);
 
       // Act & Assert
       try {
         await TranscriptionService.postProcessSegmentsByTranscriptId(999);
-        fail('Expected error to be thrown');
+        fail("Expected error to be thrown");
       } catch (error) {
-        expect(error.message).toContain('Transcript not found');
+        expect(error.message).toContain("Transcript not found");
       }
     });
 
-    test('should throw error for incomplete transcript', async () => {
+    test("should throw error for incomplete transcript", async () => {
       // Arrange
-      const mockTranscript = { id: 456, status: 'processing', fileId: 123 };
+      const mockTranscript = { id: 456, status: "processing", fileId: 123 };
 
       DbUtils.getTranscript.mockResolvedValue(mockTranscript);
 
       // Act & Assert
       try {
         await TranscriptionService.postProcessSegmentsByTranscriptId(456);
-        fail('Expected error to be thrown');
+        fail("Expected error to be thrown");
       } catch (error) {
-        expect(error.message).toContain('completed before post-processing');
+        expect(error.message).toContain("completed before post-processing");
       }
     });
 
-    test('should handle API errors during post-processing', async () => {
+    test("should handle API errors during post-processing", async () => {
       // Arrange
-      const mockTranscript = { id: 456, status: 'completed', fileId: 123 };
+      const mockTranscript = { id: 456, status: "completed", fileId: 123 };
 
       DbUtils.getTranscript.mockResolvedValue(mockTranscript);
       DbUtils.getSegmentsByTranscriptId.mockResolvedValue([
-        { start: 0, end: 5, text: 'Hello world' },
+        { start: 0, end: 5, text: "Hello world" },
       ]);
 
       // Mock API error response
       global.fetch.mockResolvedValueOnce({
         ok: false,
-        json: jest.fn().mockResolvedValue({ error: 'Post-processing error' }),
+        json: jest.fn().mockResolvedValue({ error: "Post-processing error" }),
       });
 
       // Act & Assert
       try {
         await TranscriptionService.postProcessSegmentsByTranscriptId(456);
-        fail('Expected error to be thrown');
+        fail("Expected error to be thrown");
       } catch (error) {
-        expect(error.message).toContain('后处理失败');
+        expect(error.message).toContain("后处理失败");
       }
     });
   });
 
-  describe('getFileTranscripts', () => {
-    test('should return transcripts for file', async () => {
+  describe("getFileTranscripts", () => {
+    test("should return transcripts for file", async () => {
       // Arrange
       const mockTranscripts = [
-        { id: 1, status: 'completed' },
-        { id: 2, status: 'processing' },
+        { id: 1, status: "completed" },
+        { id: 2, status: "processing" },
       ];
 
       DbUtils.getTranscriptsByFileId.mockResolvedValue(mockTranscripts);
@@ -371,16 +378,16 @@ describe('Transcription Service', () => {
       expect(DbUtils.getTranscriptsByFileId).toHaveBeenCalledWith(123);
     });
 
-    test('should rethrow database errors', async () => {
+    test("should rethrow database errors", async () => {
       // Arrange
-      DbUtils.getTranscriptsByFileId.mockRejectedValue(new Error('Database error'));
+      DbUtils.getTranscriptsByFileId.mockRejectedValue(new Error("Database error"));
 
       // Act & Assert
       try {
         await TranscriptionService.getFileTranscripts(123);
-        fail('Expected error to be thrown');
+        fail("Expected error to be thrown");
       } catch (error) {
-        expect(error.message).toContain('Database error');
+        expect(error.message).toContain("Database error");
       }
     });
   });
@@ -432,21 +439,21 @@ describe('Transcription Service', () => {
   //   });
   // });
 
-  describe('transcribeAndPostProcess', () => {
-    test('should complete transcription and post-processing', async () => {
+  describe("transcribeAndPostProcess", () => {
+    test("should complete transcription and post-processing", async () => {
       // Arrange
       const mockFile = {
         id: 123,
-        name: 'test.mp3',
-        blob: new Blob(['audio content']),
+        name: "test.mp3",
+        blob: new Blob(["audio content"]),
       };
 
       DbUtils.getFile.mockResolvedValue(mockFile);
 
       const mockTranscriptionResult = {
-        text: 'transcribed text',
+        text: "transcribed text",
         duration: 60,
-        segments: [{ start: 0, end: 5, text: 'Hello world' }],
+        segments: [{ start: 0, end: 5, text: "Hello world" }],
         segmentCount: 1,
         processingTime: 1000,
       };
@@ -457,8 +464,8 @@ describe('Transcription Service', () => {
           {
             start: 0,
             end: 5,
-            text: 'Hello world',
-            normalizedText: 'Hello world',
+            text: "Hello world",
+            normalizedText: "Hello world",
           },
         ],
       };
@@ -488,29 +495,29 @@ describe('Transcription Service', () => {
         postProcessed: mockPostProcessResult,
       });
       expect(global.fetch).toHaveBeenCalledTimes(2);
-      expect(global.fetch).toHaveBeenCalledWith('/api/transcribe', expect.anything());
-      expect(global.fetch).toHaveBeenCalledWith('/api/postprocess', expect.anything());
+      expect(global.fetch).toHaveBeenCalledWith("/api/transcribe", expect.anything());
+      expect(global.fetch).toHaveBeenCalledWith("/api/postprocess", expect.anything());
     });
 
-    test('should handle errors during combined process', async () => {
+    test("should handle errors during combined process", async () => {
       // Arrange
       const mockFile = {
         id: 123,
-        name: 'test.mp3',
-        blob: new Blob(['audio content']),
+        name: "test.mp3",
+        blob: new Blob(["audio content"]),
       };
 
       DbUtils.getFile.mockResolvedValue(mockFile);
 
       // Mock transcription error
-      global.fetch.mockRejectedValue(new Error('Transcription error'));
+      global.fetch.mockRejectedValue(new Error("Transcription error"));
 
       // Act & Assert
       try {
         await TranscriptionService.transcribeAndPostProcess(123);
-        fail('Expected error to be thrown');
+        fail("Expected error to be thrown");
       } catch (error) {
-        expect(error.message).toContain('Transcription error');
+        expect(error.message).toContain("Transcription error");
       }
     });
   });

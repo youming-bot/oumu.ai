@@ -1,11 +1,10 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect } from "react";
 
 interface UseKeyboardControlsProps {
   audioUrl?: string;
   onPlayPause: () => void;
   onSkipBack?: () => void;
   onSkipForward?: () => void;
-  onSetAbLoop: () => void;
   onToggleMute: () => void;
   onSetPlaybackRate: (rate: number) => void;
 }
@@ -15,7 +14,6 @@ export function useKeyboardControls({
   onPlayPause,
   onSkipBack,
   onSkipForward,
-  onSetAbLoop,
   onToggleMute,
   onSetPlaybackRate,
 }: UseKeyboardControlsProps) {
@@ -24,33 +22,27 @@ export function useKeyboardControls({
       if (!audioUrl) return;
 
       switch (event.key.toLowerCase()) {
-        case ' ':
+        case " ":
           event.preventDefault();
           onPlayPause();
           break;
-        case 'arrowleft':
+        case "arrowleft":
           event.preventDefault();
           onSkipBack?.();
           break;
-        case 'arrowright':
+        case "arrowright":
           event.preventDefault();
           onSkipForward?.();
           break;
-        case 'a':
-          if (event.ctrlKey || event.metaKey) {
-            event.preventDefault();
-            onSetAbLoop();
-          }
-          break;
-        case 'm':
+        case "m":
           event.preventDefault();
           onToggleMute();
           break;
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5': {
+        case "1":
+        case "2":
+        case "3":
+        case "4":
+        case "5": {
           event.preventDefault();
           const speed = parseInt(event.key, 10) * 0.25;
           onSetPlaybackRate(speed);
@@ -58,11 +50,11 @@ export function useKeyboardControls({
         }
       }
     },
-    [audioUrl, onPlayPause, onSkipBack, onSkipForward, onSetAbLoop, onToggleMute, onSetPlaybackRate]
+    [audioUrl, onPlayPause, onSkipBack, onSkipForward, onToggleMute, onSetPlaybackRate],
   );
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
   }, [handleKeyPress]);
 }

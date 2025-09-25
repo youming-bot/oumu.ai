@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { URLManager } from '@/lib/url-manager';
+import { useEffect } from "react";
+import { URLManager } from "@/lib/url-manager";
 
 /**
  * 全局内存清理Hook
@@ -23,18 +23,18 @@ export function useMemoryCleanup() {
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
+      if (document.visibilityState === "hidden") {
         // 当页面不可见时可以进行额外的内存清理
         // 目前暂时留空，后续可以根据需要添加清理逻辑
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []);
 }

@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 
 interface ProgressiveLoadingProps {
   isLoading: boolean;
@@ -12,8 +12,8 @@ interface ProgressiveLoadingProps {
 export default function ProgressiveLoading({
   isLoading,
   estimatedTime,
-  message = 'Processing...',
-  className = '',
+  message = "Processing...",
+  className = "",
 }: ProgressiveLoadingProps) {
   const [progress, setProgress] = useState(0);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -59,8 +59,8 @@ export default function ProgressiveLoading({
             <div
               className="absolute inset-0 animate-spin rounded-full border-4 border-primary border-t-transparent"
               style={{
-                animationDuration: '1s',
-                animationTimingFunction: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)',
+                animationDuration: "1s",
+                animationTimingFunction: "cubic-bezier(0.68, -0.55, 0.27, 1.55)",
               }}
             ></div>
           </div>
@@ -96,7 +96,7 @@ export default function ProgressiveLoading({
                 className="h-2 w-2 animate-pulse rounded-full bg-primary/60"
                 style={{
                   animationDelay: `${i * 0.2}s`,
-                  animationDuration: '1.5s',
+                  animationDuration: "1.5s",
                 }}
               ></div>
             ))}

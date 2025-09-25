@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { TranscriptionProgress } from '@/lib/transcription-service';
-import { TranscriptionService } from '@/lib/transcription-service';
-import type { FileRow, ProcessingStatus } from '@/types/database';
+import { useCallback, useEffect, useState } from "react";
+import { DbUtils } from "@/lib/db";
+import type { TranscriptionProgress } from "@/lib/transcription-service";
+import { TranscriptionService } from "@/lib/transcription-service";
+import type { FileRow, ProcessingStatus } from "@/types/database";
 
 interface TranscriptionManagerState {
   isTranscribing: boolean;
@@ -31,7 +32,9 @@ export function useTranscriptionManager() {
       // 转换progress对象为TranscriptionProgress格式
       const convertedProgress: TranscriptionProgress = {
         fileId,
-        status: (progress.status as any) || 'processing',
+        status:
+          (progress.status as "processing" | "completed" | "failed" | "idle" | "error") ||
+          "processing",
         progress: progress.progress || 0,
         message: progress.message || `${progress.status}`,
       };
@@ -44,7 +47,7 @@ export function useTranscriptionManager() {
     (fileId: number) => {
       return state.transcriptionProgress.get(fileId);
     },
-    [state.transcriptionProgress]
+    [state.transcriptionProgress],
   );
 
   const getTranscriptionStatus = useCallback(
@@ -53,9 +56,9 @@ export function useTranscriptionManager() {
       if (progress) {
         return progress.status as ProcessingStatus;
       }
-      return 'pending';
+      return "pending";
     },
-    [state.transcriptionProgress]
+    [state.transcriptionProgress],
   );
 
   const startTranscription = useCallback(
@@ -76,7 +79,7 @@ export function useTranscriptionManager() {
         }));
 
         const result = await TranscriptionService.transcribeAudio(fileId, {
-          language: options.language || 'ja',
+          language: options.language || "ja",
           onProgress: (progress) => {
             updateProgress(fileId, progress);
           },
@@ -86,9 +89,9 @@ export function useTranscriptionManager() {
           const newProgress = new Map(prev.transcriptionProgress);
           newProgress.set(fileId, {
             fileId,
-            status: 'completed',
+            status: "completed",
             progress: 100,
-            message: '转录完成',
+            message: "转录完成",
           });
 
           return {
@@ -100,7 +103,7 @@ export function useTranscriptionManager() {
         });
 
         // Show success toast
-        const { toast } = await import('sonner');
+        const { toast } = await import("sonner");
         toast.success(`转录完成: ${fileName}`);
 
         return result;
@@ -109,9 +112,9 @@ export function useTranscriptionManager() {
           const newProgress = new Map(prev.transcriptionProgress);
           newProgress.set(fileId, {
             fileId,
-            status: 'failed',
+            status: "failed",
             progress: 0,
-            message: error instanceof Error ? error.message : 'Unknown error',
+            message: error instanceof Error ? error.message : "Unknown error",
           });
 
           return {
@@ -123,15 +126,15 @@ export function useTranscriptionManager() {
         });
 
         // Show error toast
-        const { toast } = await import('sonner');
+        const { toast } = await import("sonner");
         toast.error(
-          `转录失败: ${fileName}: ${error instanceof Error ? error.message : 'Unknown error'}`
+          `转录失败: ${fileName}: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
 
         throw error;
       }
     },
-    [state.transcriptionQueue, state.currentTranscription, updateProgress]
+    [state.transcriptionQueue, state.currentTranscription, updateProgress],
   );
 
   const queueTranscription = useCallback((file: FileRow) => {
@@ -142,7 +145,7 @@ export function useTranscriptionManager() {
   }, []);
 
   const retryTranscription = useCallback(
-    async (fileId: number, options: { language?: string } = {}) => {
+    async (fileId: number, _options: { language?: string } = {}) => {
       // Clear any existing progress for this file
       setState((prev) => {
         const newProgress = new Map(prev.transcriptionProgress);
@@ -150,10 +153,51 @@ export function useTranscriptionManager() {
         return { ...prev, transcriptionProgress: newProgress };
       });
 
-      // Start the transcription
-      return startTranscription(fileId, options);
+      // 从数据库重新加载文件信息，而不是依赖队列
+      try {
+        const file = await DbUtils.getFile(fileId);
+        if (!file) {
+          throw new Error("File not found");
+        }
+
+        // 如果文件已经在队列中或正在转录，先移除它
+        setState((prev) => {
+          const newQueue = prev.transcriptionQueue.filter((f) => f.id !== fileId);
+          const newCurrentTranscription =
+            prev.currentTranscription?.id === fileId ? null : prev.currentTranscription;
+          return {
+            ...prev,
+            transcriptionQueue: newQueue,
+            currentTranscription: newCurrentTranscription,
+          };
+        });
+
+        // 将文件添加到队列前面，优先处理
+        setState((prev) => ({
+          ...prev,
+          transcriptionQueue: [file, ...prev.transcriptionQueue],
+        }));
+
+        // 显示开始重试的消息
+        const { toast } = await import("sonner");
+        toast.success(`开始重新转录: ${file.name}`);
+
+        // 注意：useEffect 会自动处理队列，不需要手动调用 startTranscription
+      } catch (error) {
+        setState((prev) => {
+          const newProgress = new Map(prev.transcriptionProgress);
+          newProgress.set(fileId, {
+            fileId,
+            status: "failed",
+            progress: 0,
+            message: error instanceof Error ? error.message : "Failed to reload file",
+          });
+          return { ...prev, transcriptionProgress: newProgress };
+        });
+        throw error;
+      }
     },
-    [startTranscription]
+    [],
   );
 
   const clearProgress = useCallback((fileId: number) => {

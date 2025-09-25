@@ -1,13 +1,13 @@
-import type React from 'react';
-import { Button, type ButtonProps } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import type React from "react";
+import { Button, type ButtonProps } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AudioPlayerTooltipProps {
   children: React.ReactNode;
   tooltip: string;
   disabled?: boolean;
-  variant?: ButtonProps['variant'];
-  size?: ButtonProps['size'];
+  variant?: ButtonProps["variant"];
+  size?: ButtonProps["size"];
   className?: string;
   onClick?: () => void;
 }
@@ -16,8 +16,8 @@ export function AudioPlayerTooltip({
   children,
   tooltip,
   disabled,
-  variant = 'ghost',
-  size = 'icon',
+  variant = "ghost",
+  size = "icon",
   className,
   onClick,
 }: AudioPlayerTooltipProps) {

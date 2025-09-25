@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import type { FileUploadState, ViewState } from '@/components/types';
+import { useState } from "react";
+import type { FileUploadState, ViewState } from "@/components/types";
+import { useTranscriptionManager } from "./useTranscriptionManager";
 
 export interface UseAppStateReturn {
   viewState: ViewState;
   fileUploadState: FileUploadState;
   isLoading: boolean;
+  transcriptionProgress?: Map<number, { progress: number; status: string; error?: string }>;
   setViewState: (state: ViewState) => void;
   setFileUploadState: (state: FileUploadState) => void;
   setIsLoading: (loading: boolean) => void;
@@ -17,7 +19,7 @@ export interface UseAppStateReturn {
  */
 export function useAppState(): UseAppStateReturn {
   const [viewState, setViewState] = useState<ViewState>({
-    currentView: 'upload',
+    currentView: "files",
     isPlaying: false,
     currentTime: 0,
   });
@@ -29,6 +31,9 @@ export function useAppState(): UseAppStateReturn {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+
+  // 从转录管理器获取真实的进度信息
+  const { transcriptionProgress } = useTranscriptionManager();
 
   const updateViewState = (updates: Partial<ViewState>) => {
     setViewState((prev) => ({ ...prev, ...updates }));
@@ -42,6 +47,7 @@ export function useAppState(): UseAppStateReturn {
     viewState,
     fileUploadState,
     isLoading,
+    transcriptionProgress,
     setViewState,
     setFileUploadState,
     setIsLoading,

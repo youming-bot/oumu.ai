@@ -1,15 +1,20 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
 export function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
+  if (bytes === 0) return "0 B";
+
+  // 对于小于 1KB 的文件，直接显示字节数
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
 
   const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const sizes = ["B", "KB", "MB", "GB"];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
 
   return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
@@ -39,20 +44,20 @@ export function formatTimeForVtt(seconds: number): string {
   const secs = Math.floor(seconds % 60);
   const milliseconds = Math.floor((seconds % 1) * 1000);
 
-  return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(3, '0')}`;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}.${milliseconds.toString().padStart(3, "0")}`;
 }
 
 /**
  * Generates WebVTT caption content from subtitle segments
  */
 export function generateWebVttFromSegments(
-  segments: Array<{ start: number; end: number; text: string }>
+  segments: Array<{ start: number; end: number; text: string }>,
 ): string {
   if (!segments || segments.length === 0) {
-    return '';
+    return "";
   }
 
-  let vttContent = 'WEBVTT\n\n';
+  let vttContent = "WEBVTT\n\n";
 
   segments.forEach((segment, index) => {
     const startTime = formatTimeForVtt(segment.start);
@@ -71,9 +76,9 @@ export function generateWebVttFromSegments(
  */
 export function createWebVttBlobUrl(vttContent: string): string {
   if (!vttContent) {
-    return '';
+    return "";
   }
 
-  const blob = new Blob([vttContent], { type: 'text/vtt' });
+  const blob = new Blob([vttContent], { type: "text/vtt" });
   return URL.createObjectURL(blob);
 }

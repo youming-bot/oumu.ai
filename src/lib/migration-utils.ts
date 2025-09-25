@@ -1,6 +1,6 @@
-import { handleError, handleSilently } from '@/lib/error-handler';
-import type { WordTimestamp } from '@/types/database';
-import { DbUtils, db } from './db';
+import { handleError, handleSilently } from "@/lib/error-handler";
+import type { WordTimestamp } from "@/types/database";
+import { DbUtils, db } from "./db";
 
 /**
  * Migrate all segments to include word timestamps structure
@@ -8,7 +8,7 @@ import { DbUtils, db } from './db';
  */
 export async function migrateWordTimestamps(
   batchSize: number = 100,
-  progressCallback?: (processed: number, total: number) => void
+  progressCallback?: (processed: number, total: number) => void,
 ): Promise<{ processed: number; updated: number; errors: number }> {
   try {
     const totalSegments = await db.segments.count();
@@ -51,7 +51,7 @@ export async function migrateWordTimestamps(
 
     return { processed, updated, errors };
   } catch (error) {
-    const appError = handleError(error, 'migrateWordTimestamps');
+    const appError = handleError(error, "migrateWordTimestamps");
     throw appError;
   }
 }
@@ -62,10 +62,10 @@ export async function migrateWordTimestamps(
  */
 export async function generateMockWordTimestamps(
   transcriptId: number,
-  progressCallback?: (processed: number, total: number) => void
+  progressCallback?: (processed: number, total: number) => void,
 ): Promise<{ processed: number; generated: number; errors: number }> {
   try {
-    const segments = await db.segments.where('transcriptId').equals(transcriptId).toArray();
+    const segments = await db.segments.where("transcriptId").equals(transcriptId).toArray();
 
     let processed = 0;
     let generated = 0;
@@ -102,7 +102,7 @@ export async function generateMockWordTimestamps(
     return { processed, generated, errors };
   } catch (error) {
     throw new Error(
-      `Generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Generation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -113,7 +113,7 @@ export async function generateMockWordTimestamps(
 function createMockWordTimestamps(
   text: string,
   segmentStart: number,
-  segmentEnd: number
+  segmentEnd: number,
 ): WordTimestamp[] {
   const words = text.split(/\s+/).filter((word) => word.length > 0);
   if (words.length === 0) return [];
@@ -126,7 +126,7 @@ function createMockWordTimestamps(
     const end = start + wordDuration;
 
     return {
-      word: word.replace(/[^\w\s]/g, ''), // Remove punctuation
+      word: word.replace(/[^\w\s]/g, ""), // Remove punctuation
       start: parseFloat(start.toFixed(3)),
       end: parseFloat(end.toFixed(3)),
       confidence: 0.8 + Math.random() * 0.2, // Random confidence between 0.8-1.0
@@ -152,18 +152,18 @@ export async function validateDatabaseIntegrity(): Promise<{
 
     // Check for segments without wordTimestamps field
     const segmentsWithoutWordTimestamps = allSegments.filter(
-      (segment) => segment.wordTimestamps === undefined
+      (segment) => segment.wordTimestamps === undefined,
     );
 
     if (segmentsWithoutWordTimestamps.length > 0) {
       issues.push(
-        `${segmentsWithoutWordTimestamps.length} segments are missing wordTimestamps field`
+        `${segmentsWithoutWordTimestamps.length} segments are missing wordTimestamps field`,
       );
     }
 
     // Check for invalid word timestamp data
     const invalidWordTimestamps = allSegments.filter(
-      (segment) => segment.wordTimestamps && !Array.isArray(segment.wordTimestamps)
+      (segment) => segment.wordTimestamps && !Array.isArray(segment.wordTimestamps),
     );
 
     if (invalidWordTimestamps.length > 0) {
@@ -173,7 +173,7 @@ export async function validateDatabaseIntegrity(): Promise<{
     const stats = {
       totalSegments: allSegments.length,
       segmentsWithWordTimestamps: allSegments.filter(
-        (segment) => segment.wordTimestamps && Array.isArray(segment.wordTimestamps)
+        (segment) => segment.wordTimestamps && Array.isArray(segment.wordTimestamps),
       ).length,
       segmentsWithoutWordTimestamps: segmentsWithoutWordTimestamps.length,
     };
@@ -188,7 +188,7 @@ export async function validateDatabaseIntegrity(): Promise<{
     return { valid, issues, stats };
   } catch (error) {
     throw new Error(
-      `Validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Validation failed: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -212,7 +212,7 @@ export async function repairDatabaseIssues(): Promise<{
     // Repair segments missing wordTimestamps
     const allSegments = await db.segments.toArray();
     const segmentsToRepair = allSegments.filter(
-      (segment) => segment.wordTimestamps === undefined || !Array.isArray(segment.wordTimestamps)
+      (segment) => segment.wordTimestamps === undefined || !Array.isArray(segment.wordTimestamps),
     );
 
     for (const segment of segmentsToRepair) {
@@ -229,7 +229,7 @@ export async function repairDatabaseIssues(): Promise<{
 
     return { repaired, errors };
   } catch (error) {
-    throw new Error(`Repair failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Repair failed: ${error instanceof Error ? error.message : "Unknown error"}`);
   }
 }
 
@@ -244,7 +244,6 @@ export async function exportMigrationReport(): Promise<{
     fileCount: number;
     transcriptCount: number;
     segmentCount: number;
-    termCount: number;
     segmentsWithWordTimestamps: number;
   };
   integrity: {
@@ -264,19 +263,19 @@ export async function exportMigrationReport(): Promise<{
       validateDatabaseIntegrity(),
     ]);
 
-    const backupTimestamp = localStorage.getItem('db_backup_timestamp');
+    const backupTimestamp = localStorage.getItem("db_backup_timestamp");
 
     const dbVersion = await db.version;
     return {
       timestamp: new Date(),
-      databaseVersion: typeof dbVersion === 'number' ? dbVersion : 1,
+      databaseVersion: typeof dbVersion === "number" ? dbVersion : 1,
       stats,
       integrity,
       backupAvailable: !!backupTimestamp,
     };
   } catch (error) {
     throw new Error(
-      `Report export failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      `Report export failed: ${error instanceof Error ? error.message : "Unknown error"}`,
     );
   }
 }
@@ -289,14 +288,14 @@ export async function exportMigrationReport(): Promise<{
 export class MigrationUtils {
   static async migrateWordTimestamps(
     batchSize?: number,
-    progressCallback?: (processed: number, total: number) => void
+    progressCallback?: (processed: number, total: number) => void,
   ): Promise<{ processed: number; updated: number; errors: number }> {
     return migrateWordTimestamps(batchSize, progressCallback);
   }
 
   static async generateMockWordTimestamps(
     transcriptId: number,
-    progressCallback?: (processed: number, total: number) => void
+    progressCallback?: (processed: number, total: number) => void,
   ): Promise<{ processed: number; generated: number; errors: number }> {
     return generateMockWordTimestamps(transcriptId, progressCallback);
   }
@@ -328,7 +327,6 @@ export class MigrationUtils {
       fileCount: number;
       transcriptCount: number;
       segmentCount: number;
-      termCount: number;
       segmentsWithWordTimestamps: number;
     };
     integrity: {

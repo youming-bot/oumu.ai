@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { File, Filter, Play, Square, Trash2 } from 'lucide-react';
-import React, { useCallback } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Skeleton } from '@/components/ui/skeleton';
+import { File, Filter, Play, Square, Trash2 } from "lucide-react";
+import React, { useCallback } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -14,12 +14,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useFileFormatting } from '@/hooks/useFileFormatting';
-import { useFileList } from '@/hooks/useFileList';
+} from "@/components/ui/table";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useFileFormatting } from "@/hooks/useFileFormatting";
+import { useFileList } from "@/hooks/useFileList";
 
-import type { FileRow, ProcessingStatus, TranscriptRow } from '@/types/database';
+import type { FileRow, ProcessingStatus, TranscriptRow } from "@/types/database";
 
 interface FileRowProps {
   file: FileRow;
@@ -30,7 +30,7 @@ interface FileRowProps {
   onDelete?: (fileId: number) => void;
   onRetryTranscription?: (fileId: number) => void;
   getProgressInfo?: (
-    fileId: number
+    fileId: number,
   ) => { progress: number; status: string; error?: string } | undefined;
   getErrorInfo?: (fileId: number) => string | undefined;
 }
@@ -75,7 +75,7 @@ const FileRowComponent = React.memo<FileRowProps>(
     if (!file.id) return null;
 
     return (
-      <TableRow key={file.id} className={`hover:bg-muted/50 ${isSelected ? 'bg-muted/30' : ''}`}>
+      <TableRow key={file.id} className={`hover:bg-muted/50 ${isSelected ? "bg-muted/30" : ""}`}>
         <TableCell>
           {onSelect && (
             <input
@@ -96,12 +96,14 @@ const FileRowComponent = React.memo<FileRowProps>(
         </TableCell>
 
         <TableCell>
-          <span className="text-muted-foreground text-sm">{formatFileSize(file.size)}</span>
+          <span className="text-muted-foreground text-sm">
+            {file.size !== undefined ? formatFileSize(file.size) : "-"}
+          </span>
         </TableCell>
 
         <TableCell>
           <span className="text-muted-foreground text-sm">
-            {file.duration ? formatDuration(file.duration) : '-'}
+            {file.duration ? formatDuration(file.duration) : "-"}
           </span>
         </TableCell>
 
@@ -117,19 +119,19 @@ const FileRowComponent = React.memo<FileRowProps>(
               {getStatusIcon(status)}
               {getStatusText(status)}
             </Badge>
-            {status === 'processing' && file.id && (
+            {status === "processing" && file.id && (
               <div className="text-muted-foreground text-xs">
                 {(() => {
                   const progress = getProgressInfo?.(file.id);
-                  return progress ? `${Math.round(progress.progress)}%` : 'Starting...';
+                  return progress ? `${Math.round(progress.progress)}%` : "开始中...";
                 })()}
               </div>
             )}
-            {status === 'failed' && file.id && (
+            {status === "failed" && file.id && (
               <div className="text-destructive text-xs">
                 {(() => {
                   const error = getErrorInfo?.(file.id);
-                  return error ? `Error: ${error}` : 'Transcription failed';
+                  return error ? `错误：${error}` : "转录失败";
                 })()}
               </div>
             )}
@@ -145,19 +147,19 @@ const FileRowComponent = React.memo<FileRowProps>(
                     variant="ghost"
                     size="icon"
                     onClick={handlePlayClick}
-                    disabled={status !== 'completed'}
+                    disabled={status !== "completed"}
                     className="h-8 w-8"
                   >
                     <Play className="h-4 w-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <p>{status === 'completed' ? '播放文件' : '转录未完成'}</p>
+                  <p>{status === "completed" ? "播放文件" : "转录未完成"}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
-            {(status === 'failed' || status === 'pending') && (
+            {(status === "failed" || status === "pending") && (
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -165,7 +167,7 @@ const FileRowComponent = React.memo<FileRowProps>(
                       variant="ghost"
                       size="icon"
                       onClick={handleRetryClick}
-                      className="h-8 w-8 text-blue-600 hover:bg-blue-100"
+                      className="h-8 w-8 text-primary hover:bg-primary/20"
                     >
                       <svg
                         className="h-4 w-4"
@@ -185,7 +187,7 @@ const FileRowComponent = React.memo<FileRowProps>(
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{status === 'failed' ? '重试转录' : '开始转录'}</p>
+                    <p>{status === "failed" ? "重试转录" : "开始转录"}</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -212,10 +214,10 @@ const FileRowComponent = React.memo<FileRowProps>(
         </TableCell>
       </TableRow>
     );
-  }
+  },
 );
 
-FileRowComponent.displayName = 'FileRowComponent';
+FileRowComponent.displayName = "FileRowComponent";
 
 interface FileListProps {
   files: FileRow[];
@@ -255,9 +257,9 @@ const FileList = React.memo<FileListProps>(
 
     const getTranscriptStatus = useCallback(
       (fileId: number): ProcessingStatus => {
-        return transcriptStatusMap.get(fileId) || 'pending';
+        return transcriptStatusMap.get(fileId) || "pending";
       },
-      [transcriptStatusMap]
+      [transcriptStatusMap],
     );
 
     const getProgressInfo = useCallback(
@@ -265,7 +267,7 @@ const FileList = React.memo<FileListProps>(
         if (!transcriptionProgress || !fileId) return undefined;
         return transcriptionProgress.get(fileId) || undefined;
       },
-      [transcriptionProgress]
+      [transcriptionProgress],
     );
 
     const getErrorInfo = useCallback(
@@ -273,15 +275,17 @@ const FileList = React.memo<FileListProps>(
         const progress = getProgressInfo(fileId);
         return progress?.error;
       },
-      [getProgressInfo]
+      [getProgressInfo],
     );
 
     const handleBatchDelete = useCallback(async () => {
-      if (selectedFiles.size === 0) return;
+      if (!selectedFiles.size) return;
 
       if (confirm(`确定要删除选中的 ${selectedFiles.size} 个文件吗？`)) {
         for (const fileId of selectedFiles) {
-          await onDeleteFile?.(fileId);
+          if (onDeleteFile) {
+            await onDeleteFile(fileId);
+          }
         }
         setSelectedFiles(new Set());
       }
@@ -290,17 +294,17 @@ const FileList = React.memo<FileListProps>(
     if (isLoading) {
       return (
         <div className="space-y-4">
-          <h3 className="font-medium text-lg">Uploaded Files</h3>
+          <h3 className="font-medium text-lg">已上传文件</h3>
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>File</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>文件</TableHead>
+                  <TableHead>大小</TableHead>
+                  <TableHead>时长</TableHead>
+                  <TableHead>类型</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -343,10 +347,8 @@ const FileList = React.memo<FileListProps>(
       return (
         <div className="py-12 text-center">
           <File className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
-          <h3 className="mb-2 font-medium text-lg">No files uploaded</h3>
-          <p className="text-muted-foreground">
-            Upload audio files to get started with shadowing practice.
-          </p>
+          <h3 className="mb-2 font-medium text-lg">尚未上传文件</h3>
+          <p className="text-muted-foreground">上传音频文件开始跟读练习。</p>
         </div>
       );
     }
@@ -385,7 +387,15 @@ const FileList = React.memo<FileListProps>(
               <span className="font-medium text-sm">状态:</span>
               <select
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as ProcessingStatus | 'all')}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (
+                    value === "all" ||
+                    ["pending", "processing", "completed", "failed"].includes(value)
+                  ) {
+                    setStatusFilter(value as ProcessingStatus | "all");
+                  }
+                }}
                 className="rounded-md border border-input bg-background px-3 py-1 text-sm"
               >
                 <option value="all">全部</option>
@@ -400,18 +410,18 @@ const FileList = React.memo<FileListProps>(
             <div className="flex items-center space-x-2">
               <span className="font-medium text-sm">排序:</span>
               <Button
-                variant={sortBy === 'name' ? 'secondary' : 'ghost'}
+                variant={sortBy === "name" ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => handleSort('name')}
+                onClick={() => handleSort("name")}
               >
-                名称 {sortBy === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                名称 {sortBy === "name" && (sortOrder === "asc" ? "↑" : "↓")}
               </Button>
               <Button
-                variant={sortBy === 'createdAt' ? 'secondary' : 'ghost'}
+                variant={sortBy === "createdAt" ? "secondary" : "ghost"}
                 size="sm"
-                onClick={() => handleSort('createdAt')}
+                onClick={() => handleSort("createdAt")}
               >
-                时间 {sortBy === 'createdAt' && (sortOrder === 'asc' ? '↑' : '↓')}
+                时间 {sortBy === "createdAt" && (sortOrder === "asc" ? "↑" : "↓")}
               </Button>
             </div>
           </div>
@@ -442,7 +452,7 @@ const FileList = React.memo<FileListProps>(
             </TableHeader>
             <TableBody>
               {filteredAndSortedFiles.map((file) => {
-                if (!file.id) return null;
+                if (!file?.id) return null;
                 const status = getTranscriptStatus(file.id);
                 const isSelected = selectedFiles.has(file.id);
 
@@ -472,9 +482,9 @@ const FileList = React.memo<FileListProps>(
         )}
       </div>
     );
-  }
+  },
 );
 
-FileList.displayName = 'FileList';
+FileList.displayName = "FileList";
 
 export default FileList;

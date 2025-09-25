@@ -1,141 +1,311 @@
-# 开发者指南
+# 开发指南
 
-欢迎使用 Shadowing Learning 项目的开发者指南！本文档为参与项目开发的开发者提供全面的资源。
+本文档为开发者提供 Oumu.ai 项目的完整开发指南，包括环境设置、开发流程、代码规范和最佳实践。
 
-## 📋 开发者资源
+## 概览
 
-### 🚀 快速开始
-- [开发环境设置](setup.md) - 配置您的开发环境
-- [编码标准](coding-standards.md) - 了解项目的代码规范
-- [测试策略](testing.md) - 掌握测试方法和最佳实践
-- [完整开发指南](development-guide.md) - 全面的开发流程指南
+Oumu.ai 使用现代化的技术栈，采用本地优先的架构设计，为开发者提供良好的开发体验。
 
-### 🔧 核心开发概念
-- **技术栈**: Next.js 15 + React 19 + TypeScript + shadcn/ui
-- **状态管理**: 使用自定义 React hooks
-- **数据持久化**: IndexedDB + Dexie
-- **API 集成**: Groq Whisper + OpenRouter LLM
-- **测试框架**: Jest + Testing Library
+### 技术栈
 
-### 🛠️ 开发工具
-- **代码质量**: Biome.js (linting + formatting)
-- **包管理**: pnpm
-- **版本控制**: Git + GitHub
-- **开发服务器**: Next.js 内置开发服务器
+- **前端框架**: Next.js 15 + React 19 + TypeScript
+- **UI 组件**: shadcn/ui + Radix UI + Tailwind CSS
+- **数据存储**: IndexedDB (Dexie)
+- **AI 服务**: Groq Whisper API + OpenRouter
+- **开发工具**: Biome.js + Jest
 
-## 🎯 开发工作流
+### 开发理念
 
-### 1. 环境设置
+- **本地优先**: 所有数据存储在用户本地
+- **隐私保护**: 不收集用户敏感信息
+- **渐进式增强**: 支持离线使用
+- **类型安全**: 完整的 TypeScript 类型覆盖
+- **测试驱动**: 全面的测试覆盖
+
+## 快速开始
+
+### 系统要求
+
+- **Node.js**: 18.0 或更高版本
+- **pnpm**: 8.0 或更高版本（推荐）
+- **浏览器**: Chrome 90+、Firefox 88+、Safari 14+
+- **IDE**: VSCode（推荐）
+
+### 安装步骤
+
+1. **克隆项目**
 ```bash
-# 克隆项目
-git clone https://github.com/your-repo/shadowing-learning.git
-cd shadowing-learning
+git clone https://github.com/yourusername/oumu.ai.git
+cd oumu.ai
+```
 
-# 安装依赖
+2. **安装依赖**
+```bash
 pnpm install
+```
 
-# 配置环境变量
+3. **配置环境变量**
+```bash
 cp .env.example .env.local
-# 编辑 .env.local 添加 API 密钥
+```
 
-# 启动开发服务器
+4. **配置 API 密钥**
+```env
+# .env.local
+GROQ_API_KEY=your_groq_api_key_here
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_MODEL=deepseek/deepseek-chat-v3.1:free
+```
+
+### 开发环境
+
+#### 启动开发服务器
+```bash
 pnpm dev
 ```
 
-### 2. 日常开发
+访问 http://localhost:3000 查看应用。
+
+#### 运行测试
 ```bash
-# 运行类型检查
-pnpm run type-check
-
-# 代码质量检查
-pnpm run lint
-
-# 运行测试
+# 运行所有测试
 pnpm test
 
-# 构建项目
-pnpm run build
+# 运行测试监听模式
+pnpm test:watch
+
+# 生成测试覆盖率报告
+pnpm test:coverage
 ```
 
-### 3. 贡献流程
-1. 创建功能分支：`git checkout -b feature/new-feature main`
-2. 开发和提交：`git commit -m "feat: add new feature"`
-3. 推送分支：`git push origin feature/new-feature`
-4. 创建 Pull Request
-5. 等待代码审查
-6. 合并到主分支
+#### 代码质量检查
+```bash
+# TypeScript 类型检查
+pnpm type-check
 
-## 📚 重要文档
+# 代码格式化和检查
+pnpm lint
+pnpm format
+pnpm check
+```
 
-### 必读文档
-- [架构设计](../architecture/system-design.md) - 了解系统架构
-- [API 参考](../api-reference/README.md) - API 集成指南
-- [错误处理](error-handling.md) - 错误管理策略
-- [部署指南](deployment.md) - 部署和运维
+## 项目结构
 
-### 参考文档
-- [代码审查报告](../code-review/README.md) - 当前项目状态分析
-- [项目计划](../project-management/development-plan.md) - 开发路线图
-- [术语表](../appendices/glossary.md) - 项目术语解释
+```
+src/
+├── app/                    # Next.js App Router
+│   ├── api/               # API 路由
+│   │   ├── transcribe/    # 音频转录 API
+│   │   ├── postprocess/   # 文本后处理 API
+│   │   └── progress/      # 进度查询 API
+│   ├── layout.tsx         # 根布局
+│   ├── page.tsx           # 主页面
+│   └── globals.css        # 全局样式
+├── components/            # React 组件
+│   ├── ui/               # shadcn/ui 基础组件
+│   ├── audio-player.tsx   # 音频播放器
+│   ├── file-upload.tsx    # 文件上传
+│   ├── file-list.tsx      # 文件列表
+│   └── subtitle-display.tsx # 字幕显示
+├── hooks/                 # 自定义 React Hooks
+│   ├── useAppState.ts     # 全局状态管理
+│   ├── useAudioPlayer.ts  # 音频播放控制
+│   ├── useFiles.ts        # 文件管理
+│   └── useTranscripts.ts   # 转录管理
+├── lib/                   # 工具库
+│   ├── db.ts             # 数据库配置
+│   ├── groq-client.ts    # Groq API 客户端
+│   ├── openrouter-client.ts # OpenRouter 客户端
+│   ├── audio-processor.ts # 音频处理
+│   └── utils.ts          # 工具函数
+├── types/                 # TypeScript 类型定义
+│   ├── database.ts       # 数据库类型
+│   └── errors.ts         # 错误类型
+└── test/                  # 测试文件
+    ├── unit/             # 单元测试
+    ├── integration/      # 集成测试
+    └── diagnostic/       # 诊断测试
+```
 
-## 🔍 开发者工具和配置
+## 开发工作流
 
-### VS Code 配置
-项目包含完整的 VS Code 配置，包括：
-- TypeScript 支持
-- Biome.js 集成
-- 调试配置
-- 推荐扩展
+### 1. 功能开发流程
 
-### Pre-commit 钩子
-项目配置了 pre-commit 钩子，确保代码质量：
-- 自动代码格式化
-- 代码质量检查
-- 类型检查
+```bash
+# 1. 创建功能分支
+git checkout -b feature/your-feature-name
 
-### 测试配置
-- 单元测试：Jest
-- 集成测试：Testing Library
-- 测试覆盖率要求：80%+
+# 2. 开发功能
+# 编写代码
 
-## 🎨 组件开发
+# 3. 运行测试
+pnpm test
+
+# 4. 代码质量检查
+pnpm type-check && pnpm lint
+
+# 5. 提交代码
+git commit -m "feat: add new feature"
+
+# 6. 推送到远程
+git push origin feature/your-feature-name
+
+# 7. 创建 Pull Request
+```
+
+### 2. 代码规范
+
+#### TypeScript 规范
+
+```typescript
+// 好的实践
+interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+}
+
+const createUser = (user: Omit<User, 'id' | 'createdAt'>): User => {
+  return {
+    id: generateId(),
+    createdAt: new Date(),
+    ...user
+  };
+};
+
+// 避免使用 any
+function processData(data: unknown): Result {
+  // 使用类型守卫
+  if (isValidData(data)) {
+    return transformData(data);
+  }
+
+  throw new Error('Invalid data format');
+}
+```
+
+#### React 组件规范
+
+```typescript
+// 使用函数组件和 TypeScript
+interface AudioPlayerProps {
+  src: string;
+  onTimeUpdate?: (currentTime: number) => void;
+  className?: string;
+}
+
+const AudioPlayer: React.FC<AudioPlayerProps> = ({
+  src,
+  onTimeUpdate,
+  className = ''
+}) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  return (
+    <div className={`audio-player ${className}`}>
+      {/* 组件内容 */}
+    </div>
+  );
+};
+
+export default AudioPlayer;
+```
+
+### 3. 测试规范
+
+#### 单元测试
+
+```typescript
+// 组件测试
+import { render, screen, fireEvent } from '@testing-library/react';
+import { AudioPlayer } from '../AudioPlayer';
+
+describe('AudioPlayer', () => {
+  it('renders play button when audio is provided', () => {
+    render(<AudioPlayer src="/test.mp3" />);
+    expect(screen.getByRole('button', { name: /play/i })).toBeInTheDocument();
+  });
+
+  it('calls onTimeUpdate when time changes', () => {
+    const mockOnTimeUpdate = jest.fn();
+    render(<AudioPlayer src="/test.mp3" onTimeUpdate={mockOnTimeUpdate} />);
+
+    // 模拟时间更新
+    fireEvent.timeUpdate(screen.getByRole('audio'), {
+      currentTime: 10
+    });
+
+    expect(mockOnTimeUpdate).toHaveBeenCalledWith(10);
+  });
+});
+```
+
+## 组件开发
 
 ### UI 组件
-项目使用 shadcn/ui 组件库：
+
+项目使用 shadcn/ui 组件库，提供：
 - 现代化设计系统
 - 可访问性支持
 - TypeScript 类型安全
 - 主题支持
 
 ### 自定义 Hooks
+
 项目包含多个自定义 hooks：
-- `useAppState` - 全局应用状态
+- `useAppState` - 全局应用状态管理
 - `useAudioPlayer` - 音频播放控制
-- `useFiles` - 文件管理
+- `useFiles` - 文件管理和上传
 - `useTranscripts` - 转录数据处理
+- `useTranscriptionProgress` - 进度跟踪
 
-## 🧪 测试策略
+### 数据库开发
 
-### 测试类型
-- **单元测试**: 测试独立函数和组件
-- **集成测试**: 测试组件间的交互
-- **E2E 测试**: 端到端用户流程测试
+```typescript
+// src/lib/db.ts
+import { Dexie, type Table } from 'dexie';
 
-### 测试最佳实践
-- 使用 Testing Library 进行组件测试
-- Mock 外部依赖
-- 测试用户交互，而不是实现细节
-- 保持测试的可维护性
+export interface FileRow {
+  id?: number;
+  name: string;
+  size: number;
+  type: string;
+  blob: Blob;
+  uploadedAt: Date;
+  duration?: number;
+  transcriptionStatus: ProcessingStatus;
+}
 
-## 🚀 部署和发布
+export class AppDatabase extends Dexie {
+  files!: Table<FileRow, number>;
+  transcripts!: Table<TranscriptRow, number>;
+
+  constructor() {
+    super('OumuDatabase');
+
+    this.version(3).stores({
+      files: '++id,name,size,type,uploadedAt,transcriptionStatus',
+      transcripts: '++id,fileId,rawText,processingStatus,createdAt,updatedAt'
+    });
+  }
+}
+
+export const db = new AppDatabase();
+```
+
+## 部署和发布
 
 ### 部署选项
+
 - **Vercel**: 推荐的零配置部署
-- **Netlify**: 另一个优秀的托管选项
+- **Netlify**: 静态站点托管
 - **Docker**: 容器化部署
 - **自托管**: 完全控制的服务器部署
 
 ### 发布流程
+
 1. 更新版本号
 2. 更新 CHANGELOG
 3. 创建发布分支
@@ -143,51 +313,54 @@ pnpm run build
 5. 部署到生产环境
 6. 创建 GitHub Release
 
-## 📊 监控和调试
+## 贡献指南
 
-### 开发工具
-- React DevTools - 组件状态和性能分析
-- 浏览器开发者工具 - 网络和性能调试
-- Next.js 开发工具 - 构建和路由分析
+### 代码风格
 
-### 日志和监控
-- 应用内日志系统
-- 错误跟踪 (可选 Sentry 集成)
-- 性能监控
+- 使用 Biome.js 进行代码格式化
+- 遵循 TypeScript 严格模式
+- 使用 ESLint 和 Prettier 规则
+- 编写清晰的代码注释
 
-## 🆘 获取帮助
+### 提交规范
 
-### 技术支持
+```bash
+# 提交格式
+<type>(<scope>): <description>
+
+# 示例
+feat: add audio player functionality
+fix: resolve subtitle sync issue
+docs: update API documentation
+style: format code with biome
+test: add unit tests for audio player
+chore: update dependencies
+```
+
+### Pull Request 流程
+
+1. Fork 项目
+2. 创建功能分支
+3. 编写代码和测试
+4. 运行代码质量检查
+5. 提交代码
+6. 创建 Pull Request
+7. 等待代码审查
+8. 合并到主分支
+
+### 获取帮助
+
 - **GitHub Issues**: 报告 bug 和请求功能
 - **GitHub Discussions**: 技术问题和讨论
 - **Stack Overflow**: 使用项目标签提问
 
 ### 开发资源
+
 - [Next.js 文档](https://nextjs.org/docs)
 - [React 文档](https://react.dev/)
 - [TypeScript 文档](https://www.typescriptlang.org/docs/)
 - [shadcn/ui 文档](https://ui.shadcn.com/)
 
-### 社区
-- 加入我们的 [Discord 服务器](https://discord.gg/shadowing-learning)
-- 关注 [GitHub Discussions](https://github.com/your-repo/shadowing-learning/discussions)
-- 订阅项目更新
-
-## 🎯 贡献指南
-
-### 贡献方式
-1. **代码贡献**: 修复 bug、添加功能、改进文档
-2. **文档改进**: 修复错误、添加示例、改进说明
-3. **问题报告**: 报告 bug、建议改进
-4. **社区参与**: 帮助其他用户、参与讨论
-
-### 贡献准则
-- 遵循项目编码标准
-- 编写适当的测试
-- 更新相关文档
-- 保持向后兼容性
-- 尊重项目许可证
-
 ---
 
-*开发者指南 | 版本: 1.0 | 最后更新: 2024年9月22日*
+*最后更新: 2024年9月24日*
