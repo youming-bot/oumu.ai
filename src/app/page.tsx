@@ -1,6 +1,6 @@
 import { Suspense } from "react";
-import HomePageClient from "./HomePageClient";
 import { PageLoadingState } from "@/components/ui/LoadingState";
+import HomePageClient from "./HomePageClient";
 
 export default function HomePage() {
   return (
