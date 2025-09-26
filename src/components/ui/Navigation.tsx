@@ -1,26 +1,23 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useState } from "react";
+import { ROUTES } from "@/lib/routes";
 
-interface NavigationProps {
-  currentView?: "files" | "settings";
-  onViewChange?: (view: "files" | "settings") => void;
-}
-
-export default function Navigation({ currentView = "files", onViewChange }: NavigationProps) {
+export default function Navigation() {
+  const pathname = usePathname();
   const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
-  const themeIcon = useMemo(
-    () => (resolvedTheme === "dark" ? "light_mode" : "dark_mode"),
-    [resolvedTheme],
-  );
+  const themeIcon = useMemo(() => {
+    return resolvedTheme === "dark" ? "light_mode" : "dark_mode";
+  }, [resolvedTheme]);
 
-  const themeLabel = useMemo(
-    () => (resolvedTheme === "dark" ? "切换至浅色主题" : "切换至暗色主题"),
-    [resolvedTheme],
-  );
+  const themeLabel = useMemo(() => {
+    return resolvedTheme === "dark" ? "切换至浅色主题" : "切换至暗色主题";
+  }, [resolvedTheme]);
 
   const toggleTheme = () => {
     if (!mounted) return;
@@ -32,41 +29,42 @@ export default function Navigation({ currentView = "files", onViewChange }: Navi
     setMounted(true);
   }, []);
 
-  const navItems = [
+  const navLinks = [
     {
       id: "files",
       label: "文件",
       icon: "folder",
-      active: currentView === "files",
+      href: ROUTES.HOME,
+    },
+    {
+      id: "account",
+      label: "用户中心",
+      icon: "account_circle",
+      href: ROUTES.ACCOUNT,
     },
     {
       id: "settings",
       label: "设置",
       icon: "settings",
-      active: currentView === "settings",
+      href: ROUTES.SETTINGS,
     },
+  ] as const;
+
+  const actionItems = [
     {
       id: "theme",
       label: themeLabel,
       icon: themeIcon,
-      active: false,
       onClick: toggleTheme,
+      pressed: resolvedTheme === "dark",
     },
-  ];
-
-  const handleNavClick = (item: { onClick?: () => void; id: string }) => {
-    if (item.onClick) {
-      item.onClick();
-    } else if (item.id === "files" || item.id === "settings") {
-      onViewChange?.(item.id);
-    }
-  };
+  ] as const;
 
   if (!mounted) {
     return (
       <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-20">
         <div className="flex items-center gap-1 rounded-full bg-surface/90 backdrop-blur-sm p-1.5 shadow-lg border-2 border-border/80">
-          {navItems.map((item) => (
+          {[...navLinks, ...actionItems].map((item) => (
             <div key={item.id} className="flex h-11 w-11 items-center justify-center rounded-full">
               <div className="h-6 w-6" />
             </div>
@@ -79,17 +77,35 @@ export default function Navigation({ currentView = "files", onViewChange }: Navi
   return (
     <nav className="fixed top-4 left-1/2 -translate-x-1/2 z-20">
       <div className="flex items-center gap-1 rounded-full bg-surface/90 backdrop-blur-sm p-1.5 shadow-lg border-2 border-border/80">
-        {navItems.map((item) => (
+        {navLinks.map((item) => {
+          const isActive =
+            pathname === item.href.replace(/#.*/, "") ||
+            (item.href.startsWith("/") && pathname.startsWith("/player") && item.href === "/");
+
+          return (
+            <Link
+              key={item.id}
+              href={item.href}
+              className={`flex h-11 w-11 items-center justify-center rounded-full text-primary/80 hover:bg-primary/10 transition-colors ${
+                isActive ? "bg-primary/10" : ""
+              }`}
+              aria-label={item.label}
+              aria-current={isActive ? "page" : undefined}
+            >
+              <span className="material-symbols-outlined text-2xl">{item.icon}</span>
+            </Link>
+          );
+        })}
+
+        {actionItems.map((item) => (
           <button
             key={item.id}
             type="button"
-            onClick={() => handleNavClick(item)}
-            className={`flex h-11 w-11 items-center justify-center rounded-full text-primary/80 hover:bg-primary/10 transition-colors ${
-              item.active ? "bg-primary/10" : ""
-            }`}
+            onClick={item.onClick}
+            className="flex h-11 w-11 items-center justify-center rounded-full text-primary/80 hover:bg-primary/10 transition-colors"
             title={item.label}
             aria-label={item.label}
-            aria-pressed={item.active}
+            aria-pressed={item.pressed}
           >
             <span className="material-symbols-outlined text-2xl">{item.icon}</span>
           </button>

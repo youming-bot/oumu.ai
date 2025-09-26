@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 
 interface SettingsCardProps {
   children: ReactNode;
@@ -37,11 +37,15 @@ export function SettingsRowContent({ title, description }: SettingsRowContentPro
 interface SettingsSectionProps {
   title: string;
   children: ReactNode;
+  sectionKey?: string;
 }
 
-export function SettingsSection({ title, children }: SettingsSectionProps) {
+export function SettingsSection({ title, children, sectionKey }: SettingsSectionProps) {
+  const generatedId = useId();
+  const sectionId = sectionKey ? `${sectionKey}-section` : generatedId;
+
   return (
-    <section className="space-y-4">
+    <section id={sectionId} data-section={sectionKey} className="space-y-4">
       <h2 className="settings-section-title">{title}</h2>
       {children}
     </section>

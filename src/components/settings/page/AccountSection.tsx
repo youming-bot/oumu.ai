@@ -3,7 +3,7 @@ import { SettingsCard, SettingsSection } from "@/components/settings/SettingsCar
 
 export function AccountSection() {
   return (
-    <SettingsSection title="账户">
+    <SettingsSection sectionKey="account" title="账户">
       <SettingsCard>
         <div className="settings-account-card">
           <Image

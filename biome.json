@@ -28,7 +28,8 @@
       },
       "suspicious": {
         "noConsole": "warn",
-        "noUnknownAtRules": "off"
+        "noUnknownAtRules": "off",
+        "noArrayIndexKey": "off"
       },
       "a11y": {
         "useAriaPropsSupportedByRole": "off",

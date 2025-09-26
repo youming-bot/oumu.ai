@@ -2,7 +2,7 @@ import { SettingsCard, SettingsSection } from "@/components/settings/SettingsCar
 
 export function ProUpgradeSection() {
   return (
-    <SettingsSection title="加入OUMU Pro">
+    <SettingsSection sectionKey="pro" title="加入OUMU Pro">
       <SettingsCard>
         <div className="settings-pro-card">
           <div className="settings-pro-icon">

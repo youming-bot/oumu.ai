@@ -429,22 +429,3 @@ export function withErrorBoundary<P extends object>(
     );
   };
 }
-
-/**
- * 错误边界装饰器 - 用于类组件
- */
-export function ErrorBoundaryDecorator(
-  options: {
-    fallbackMessage?: string;
-    showDetails?: boolean;
-    allowReset?: boolean;
-    allowReport?: boolean;
-  } = {},
-) {
-  return <T extends new (...args: unknown[]) => React.Component>(BaseComponent: T) =>
-    class extends BaseComponent {
-      render() {
-        return <ErrorBoundary {...options}>{super.render()}</ErrorBoundary>;
-      }
-    };
-}
