@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useId, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 
 interface FileUploadProps {
@@ -18,6 +18,7 @@ export default function FileUpload({
 }: FileUploadProps) {
   const [_isDragActive, setIsDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadDescriptionId = useId();
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -57,7 +58,13 @@ export default function FileUpload({
 
   return (
     <div className={className}>
-      <div {...getRootProps()} className="upload-area cursor-pointer">
+      <div
+        {...getRootProps()}
+        className="upload-area cursor-pointer"
+        role="region"
+        aria-label="文件上传区域"
+        aria-describedby={uploadDescriptionId}
+      >
         <input
           {...getInputProps()}
           ref={fileInputRef}
@@ -66,17 +73,29 @@ export default function FileUpload({
           accept="audio/*"
           onChange={handleFileInputChange}
           className="hidden"
+          aria-label="选择音频文件"
         />
 
-        <span className="material-symbols-outlined text-6xl text-[var(--text-color)]">
+        <span
+          className="material-symbols-outlined text-6xl text-[var(--text-color)]"
+          aria-hidden="true"
+        >
           cloud_upload
         </span>
 
         <div className="flex flex-col items-center gap-2">
-          <p className="text-xl font-bold text-[var(--text-primary)]">拖拽文件到这里</p>
+          <p className="text-xl font-bold text-[var(--text-primary)]" id={uploadDescriptionId}>
+            拖拽文件到这里
+          </p>
+          <p className="text-sm text-[var(--text-muted)]">支持 MP3、WAV、M4A、OGG、FLAC 格式</p>
         </div>
 
-        <button type="button" className="btn-primary" onClick={handleFileInputClick}>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={handleFileInputClick}
+          aria-describedby="upload-description"
+        >
           <span>选择文件</span>
         </button>
       </div>

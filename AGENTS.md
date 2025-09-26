@@ -1,24 +1,25 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-Oumu.ai uses the Next.js App Router in `src/app`, where each route segment bundles page, layout, and server actions. Shared UI primitives live in `src/components`, composable state lives in `src/hooks`, domain logic and API clients stay under `src/lib`, and reusable types are defined in `src/types`. Static assets and icons belong in `public/`. Scenario notes and architecture references sit in `docs/`, while automated diagnostics and fixtures are in `test/diagnostic` and `test/factories`.
+The Next.js App Router lives in `src/app`; each route folder pairs UI, layouts, and server actions. Shared UI primitives and icons live in `src/components`, stateful hooks in `src/hooks`, and all API/domain logic in `src/lib`. Global types stay under `src/types`. Static assets belong in `public/`. Architecture notes and scenario playbooks live in `docs/`, while automated fixtures sit in `test/diagnostic` and `test/factories`.
 
 ## Build, Test, and Development Commands
-Use pnpm (the repo pins pnpm 10). Key commands:
-- `pnpm dev` launches the local Next.js server with hot reload.
-- `pnpm build` compiles the production bundle; run before profiling deployments.
-- `pnpm start` serves the `.next` output for smoke testing.
-- `pnpm lint` and `pnpm format` apply Biome checks; the latter writes fixes.
-- `pnpm type-check` runs the TypeScript compiler without emitting files.
+Use pnpm 10:
+- `pnpm dev` launches the local dev server with HMR.
+- `pnpm build` compiles the production bundle; run before profiling or deploying.
+- `pnpm start` serves the `.next` build for smoke checks.
+- `pnpm lint` runs Biome; `pnpm format` applies fixes.
+- `pnpm type-check` runs the TypeScript compiler in noEmit mode.
 
 ## Coding Style & Naming Conventions
-Biome enforces two-space indentation, 100-character line width, and recommended lint rules (`noUnusedImports`, `useConst`). Prefer `PascalCase` for components, `camelCase` for variables and hooks (`useTranscriptionStatus`), and `SCREAMING_SNAKE_CASE` for environment constants. Keep JSX pure and favor Tailwind utility classes configured in `tailwind.config.ts`. Run `pnpm format` before pushing to avoid churn.
+Biome enforces two-space indentation, 100-character lines, and rules like `noUnusedImports` and `useConst`. Favor `PascalCase` for components (`AudioRecorderPanel`), `camelCase` for hooks and variables (`useTranscriptionStatus`), and `SCREAMING_SNAKE_CASE` for env constants. Keep JSX declarative and lean on Tailwind utilities defined in `tailwind.config.ts`. Always run `pnpm format` before committing.
 
 ## Testing Guidelines
-Jest with Testing Library backs both unit and integration coverage. Co-locate specs in the mirrored `test/unit` or `test/integration` paths, naming files `*.test.ts` or `*.test.tsx`. For IndexedDB flows, reuse helpers in `test/factories`. Execute `pnpm test` for CI parity and `pnpm test:coverage` when touching core flows; maintain or improve reported coverage gates. Use `pnpm test:watch` when iterating locally.
+Jest + Testing Library power unit and integration suites. Mirror source paths in `test/unit` or `test/integration`, naming specs `*.test.ts` or `*.test.tsx`. Reuse IndexedDB helpers from `test/factories` and diagnostics from `test/diagnostic`. Run `pnpm test` for CI parity, `pnpm test:watch` when iterating, and `pnpm test:coverage` when touching core flows to maintain coverage gates.
 
 ## Commit & Pull Request Guidelines
-Follow the concise, imperative style seen in history (`fix: resolve Dexie schema drift`). Keep subject lines under 72 characters and include context in the body when behavior changes. Reference GitHub issues with `Closes #123` when applicable. Pull requests should summarize intent, call out user-facing impacts, and attach before/after screenshots for UI changes. Verify `pnpm lint`, `pnpm type-check`, and `pnpm test` locally before requesting review.
+Write concise, imperative commits (`fix: align Dexie schema`). Keep subject lines under 72 chars and add context in the body when behavior shifts. Reference issues with `Closes #123` when applicable. PRs should summarize intent, flag user-visible changes, and attach before/after screenshots for UI work. Verify `pnpm lint`, `pnpm type-check`, and `pnpm test` locally before requesting review.
 
-## Environment & Data Handling
-Configuration lives in `.env.example`; copy it to `.env.local` and inject Groq/OpenRouter keys. Never commit credentials. The app persists user media to IndexedDB only—respect this contract when adding features and ensure new API calls avoid server-side storage. Document any new flags in `docs/` so agents can reproduce setups.
+## Security & Configuration Tips
+Copy `.env.example` to `.env.local` and inject Groq/OpenRouter keys; never commit secrets. Persist user media to IndexedDB only and avoid server storage. Document any new flags or setup steps in `docs/` so other agents can reproduce your environment.
+

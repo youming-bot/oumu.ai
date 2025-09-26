@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 import FileList from "@/components/file/FileList";
 import FileUpload from "@/components/file/FileUpload";
 import StatsCards from "@/components/file/StatsCards";
@@ -10,26 +10,7 @@ import { useAppState, useFiles, useTranscriptionManager, useTranscripts } from "
 
 export default function HomePageClient() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  // 兼容旧的视图查询参数 (?view=settings / ?view=account)
-  useEffect(() => {
-    const view = searchParams.get("view");
-    if (!view) {
-      return;
-    }
-
-    const target = view === "settings" ? "/settings" : view === "account" ? "/account" : null;
-    if (!target) {
-      return;
-    }
-
-    const params = new URLSearchParams(Array.from(searchParams.entries()));
-    params.delete("view");
-    const remaining = params.toString();
-    const destination = remaining ? `${target}?${remaining}` : target;
-    router.replace(destination);
-  }, [router, searchParams]);
   // 使用 hooks 获取数据
   const { fileUploadState, updateFileUploadState } = useAppState();
   const { files, addFiles, deleteFile } = useFiles(updateFileUploadState);

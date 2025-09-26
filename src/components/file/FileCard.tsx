@@ -92,15 +92,6 @@ export default function FileCard({
       </div>
 
       <div className="file-card-actions">
-        <button
-          type="button"
-          className="file-card-action file-card-action--delete"
-          onClick={handleDelete}
-          title="删除"
-        >
-          <span className="material-symbols-outlined">delete</span>
-        </button>
-
         {(transcript?.status === "failed" || transcript?.status === "pending") && (
           <button
             type="button"
@@ -128,6 +119,15 @@ export default function FileCard({
             </span>
           </button>
         )}
+
+        <button
+          type="button"
+          className="file-card-action file-card-action--delete"
+          onClick={handleDelete}
+          title="删除"
+        >
+          <span className="material-symbols-outlined">delete</span>
+        </button>
       </div>
     </div>
   );
